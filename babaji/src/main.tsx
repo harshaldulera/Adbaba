@@ -9,9 +9,9 @@ import StyleThemeProvider from './themesystem.tsx';
 
 function makeClient() {
   const httpLink = createHttpLink({
-    uri: import.meta.env.VITE_GRAPHQL_URI,
+    uri: import.meta.env.VITE_GRAPHQL_URL,
     headers: {
-      "X-Hasura-Admin-Secret": import.meta.env.VITE_HASURA_ADMIN_SECRET,
+      "X-Hasura-Admin-Secret": import.meta.env.VITE_HASURA_GRAPHQL_ADMIN_SECRET,
     },
   });
 
