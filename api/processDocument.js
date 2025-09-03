@@ -5,6 +5,7 @@ const path = require("path");
 const multer = require("multer");
 const FormData = require("form-data");
 require("dotenv").config();
+const { v4: uuidv4 } = require("uuid");
 
 const router = express.Router();
 
@@ -187,7 +188,7 @@ Based on this document, extract and structure relevant data into the following J
             };
 
             const geminiResponse = await axios.post(
-                `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${GEMINI_API_KEY}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
                 geminiPayload,
                 {
                     headers: { "Content-Type": "application/json" },
@@ -266,7 +267,7 @@ mutation MyMutation($object: businesses_insert_input!) {
                 query: mutationQuery,
                 variables: {
                     object: {
-                        id: extractedData.id || "",
+                        id: uuidv4(),
                         name: extractedData.name || "",
                         industry: extractedData.industry || "",
                         description: extractedData.description || "",
