@@ -37,53 +37,57 @@ export default function Home() {
     const [businessId, setBusinessIdState] = useState(null); // State for business ID
     const { register, setValue, handleSubmit } = useForm(); // Initialize useForm
 
-    // const fetchBusinessData = async (id: any) => {
-    //   const HASURA_GRAPHQL_URL = process.env.VITE_GRAPHQL_URL; // Replace with your Hasura GraphQL endpoint
-    //   const HASURA_ADMINN_SECRET = process.env.HASURA_ADMIN_SECRET; // Your Hasura admin secret
+    const fetchBusinessData = async (id: any) => {
+        const HASURA_GRAPHQL_URL = process.env.VITE_GRAPHQL_URL; // Replace with your Hasura GraphQL endpoint
+        const HASURA_ADMINN_SECRET = process.env.HASURA_ADMIN_SECRET; // Your Hasura admin secret
 
-    //   const query = `
-    //     query displayFormData($id: uuid!) {
-    //       businesses(where: {id: {_eq: $id}}) {
-    //         name
-    //         industry
-    //         description
-    //         website
-    //         founded_year
-    //         hq_location
-    //         business_size
-    //         target_age_group
-    //         target_gender
-    //         customer_interests
-    //         customer_behavior
-    //         marketing_budget
-    //         customer_acquisition_cost
-    //         content_strategy
-    //         target_location
-    //       }
-    //     }
-    //   `;
+        if (!HASURA_GRAPHQL_URL || !HASURA_ADMINN_SECRET) {
+            throw new Error("Missing required environment variables");
+        }
 
-    //   try {
-    //     const response = await axios.post(
-    //         HASURA_GRAPHQL_URL,
-    //       {
-    //         query,
-    //         variables: { id },
-    //       },
-    //       {
-    //         headers: {
-    //           "Content-Type": "application/json",
-    //           "x-hasura-admin-secret": HASURA_ADMINN_SECRET,
-    //         },
-    //       }
-    //     );
+        const query = `
+        query displayFormData($id: uuid!) {
+          businesses(where: {id: {_eq: $id}}) {
+            name
+            industry
+            description
+            website
+            founded_year
+            hq_location
+            business_size
+            target_age_group
+            target_gender
+            customer_interests
+            customer_behavior
+            marketing_budget
+            customer_acquisition_cost
+            content_strategy
+            target_location
+          }
+        }
+      `;
 
-    //     return response.data.data.businesses[0]; // Return the first business data
-    //   } catch (error) {
-    //     console.error("Error fetching business data:", error);
-    //     throw error;
-    //   }
-    // };
+        try {
+            const response = await axios.post(
+                HASURA_GRAPHQL_URL,
+                {
+                    query,
+                    variables: { id },
+                },
+                {
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-hasura-admin-secret": HASURA_ADMINN_SECRET,
+                    },
+                }
+            );
+
+            return response.data.data.businesses[0]; // Return the first business data
+        } catch (error) {
+            console.error("Error fetching business data:", error);
+            throw error;
+        }
+    };
 
     const handleFileUpload = async (event: any) => {
         const file = event.target.files?.[0];
