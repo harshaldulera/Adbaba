@@ -100,7 +100,7 @@ export default function Home() {
 
             try {
                 const response = await axios.post(
-                    "http://localhost:3000/process-document",
+                    "https://adbaba.onrender.com/process-document",
                     formData,
                     {
                         headers: {
