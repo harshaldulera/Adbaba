@@ -158,7 +158,7 @@ router.post("/generate-funnel-flow", async (req, res) => {
             const ollamaResponse = await axios.post(
                 "http://127.0.0.1:11434/api/generate",
                 {
-                    model: "llama3.1",
+                    model: "gemma:2b",
                     prompt: marketingPrompt,
                     stream: false,
                 }, { timeout: 300000 }
@@ -214,7 +214,7 @@ router.post("/generate-funnel-flow", async (req, res) => {
             const visualOllamaResponse = await axios.post(
                 "http://localhost:11434/api/generate",
                 {
-                    model: "llama3.1",
+                    model: "gemma:2b",
                     prompt: visualizationPrompt,
                     stream: false,
                 }, { timeout: 300000 }

@@ -15,8 +15,10 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "<your-gemini-key>";
 
 // const IS_OLLAMA = process.env.IS_OLLAMA === "true";
 // const IS_GEMINI = process.env.IS_GEMINI === "true";
-const IS_OLLAMA = process.env.IS_OLLAMA === "true";
-const IS_GEMINI = process.env.IS_GEMINI === "true" || (!process.env.IS_OLLAMA && !process.env.OPENAI_API_KEY); 
+// const IS_OLLAMA = process.env.IS_OLLAMA === "true";
+// const IS_GEMINI = process.env.IS_GEMINI === "true" || (!process.env.IS_OLLAMA && !process.env.OPENAI_API_KEY); 
+const IS_GEMINI = true;
+const IS_OLLAMA = false;
 
 
 // **Proceed with Hasura Mutation**
@@ -90,11 +92,12 @@ router.post("/process-document", upload.single("doc"), async (req, res) => {
 
         const filePath = req.file.path;
         const fileName = req.file.originalname;
+        const generateUUID = uuidv4();
+        console.log(generateUUID);
         const prompt = `I will provide a company representation document containing details about the company, its industry, clients, past marketing experiences, and target audience.
 
 Based on this document, extract and structure relevant data into the following JSON fields:
 {
-  "id": "uuid (generated using gen_random_uuid())",
   "name": "Company Name (Required)",
   "industry": "Industry (Required)",
   "description": "Tagline/One-line description (Required)",
@@ -146,13 +149,13 @@ Based on this document, extract and structure relevant data into the following J
             const documentText = fs.readFileSync(filePath, "utf-8");
 
             const ollamaPayload = {
-                model: "llama3",
+                model: "llama3.1",
                 prompt: `${prompt}\n\n${documentText}`,
                 stream: false,
             };
 
             const ollamaResponse = await axios.post(
-                "https://7e38-2402-3a80-6d7-98aa-517d-394b-57f-3960.ngrok-free.app/api/generate",
+                "http://localhost:11434/api/generate",
                 ollamaPayload,
                 {
                     headers: { "Content-Type": "application/json" },
@@ -203,6 +206,8 @@ Based on this document, extract and structure relevant data into the following J
             try {
                 const cleanedResponse = aiResponse.replace(/```json|```/g, "").trim();
                 extractedData = JSON.parse(cleanedResponse);
+
+                extractedData.id = generateUUID;
 
                 // **Convert comma-separated strings to arrays**
                 function parseToArray(value) {
@@ -267,7 +272,7 @@ mutation MyMutation($object: businesses_insert_input!) {
                 query: mutationQuery,
                 variables: {
                     object: {
-                        id: uuidv4(),
+                        id: extractedData.id || "",
                         name: extractedData.name || "",
                         industry: extractedData.industry || "",
                         description: extractedData.description || "",
