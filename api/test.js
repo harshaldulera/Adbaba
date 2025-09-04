@@ -1,32 +1,25 @@
-const axios = require("axios");
-const fs = require("fs");
-const FormData = require("form-data");
+// testFunnel.js
+import axios from "axios";
 
-async function testUpload() {
+const BUSINESS_ID = "ea2a070b-8595-45b0-8569-466fd0626e3c"; // <-- your businessId
+const API_URL = "http://localhost:3000/generate-funnel-flow";
+
+const testFunnel = async () => {
   try {
-    // Create form-data and attach the PDF
-    const formData = new FormData();
-    formData.append("doc", fs.createReadStream("./nike-growth-story.pdf"));
+    console.log("🔄 Sending request to generate funnel flow...");
+    const response = await axios.post(API_URL, {
+      businessId: BUSINESS_ID,
+    });
 
-    // Send request to your API
-    const response = await axios.post(
-      "http://localhost:3000/process-document",
-      formData,
-      {
-        headers: {
-          ...formData.getHeaders(),
-        },
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
-      }
-    );
-
-    console.log("✅ Response from API:");
-    console.dir(response.data, { depth: null });
+    console.log("✅ Funnel generation succeeded!");
+    console.log("Funnel Data:\n", JSON.stringify(response.data.funnelData, null, 2));
+    console.log("Visualization Data:\n", JSON.stringify(response.data.visualizationData, null, 2));
   } catch (error) {
-    console.error("❌ Upload failed:");
-    console.error(error.response?.data || error.message);
+    console.error("❌ Funnel generation failed!");
+    console.error("Status:", error.response?.status);
+    console.error("Response:", error.response?.data);
+    console.error("Error Message:", error.message);
   }
-}
+};
 
-testUpload();
+testFunnel();
