@@ -1,7 +1,7 @@
 // testFunnel.js
 import axios from "axios";
 
-const BUSINESS_ID = "9a561814-25b4-4996-ac24-017035b4e04e"; // <-- your businessId
+const BUSINESS_ID = "9a561814-25b4-4996-ac24-017035b4e04e";
 const API_URL = "http://localhost:3000/generate-funnel-flow";
 
 const testFunnel = async () => {

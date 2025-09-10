@@ -251,7 +251,7 @@ import ReactFlow, {
   Controls,
 } from "reactflow";
 import { stratify, tree } from "d3-hierarchy";
-import { Box, LinearProgress, Typography, Button } from "@mui/material";
+import { Box, LinearProgress, Typography, Button, TextField, Paper } from "@mui/material";
 import { Link } from "react-router-dom";
 import { ArrowForward, ArrowBack } from "@mui/icons-material";
 import "reactflow/dist/style.css";
@@ -367,30 +367,29 @@ const getLayoutedElements = (nodes: any[], edges: any[]) => {
   return { nodes: layoutedNodes, edges };
 };
 
-const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-
+const LayoutFlow = ({
+  setLoading,
+  nodes,
+  edges,
+  setNodes,
+  setEdges,
+}: {
+  setLoading: (loading: boolean) => void;
+  nodes: any[];
+  edges: any[];
+  setNodes: (nodes: any[]) => void;
+  setEdges: (edges: any[]) => void;
+}) => {
   const { businessId } = useBusinessContext();
 
   useEffect(() => {
     const renderHardcodedFunnel = async () => {
       setLoading(true);
       try {
-        console.log("⏳ Simulating AI processing delay (5s)...");
-        await new Promise((resolve) => setTimeout(resolve, 5000)); // ⏳ 5-second delay
-
-        console.log("✅ Rendering hardcoded funnel data...");
+        await new Promise((resolve) => setTimeout(resolve, 1500));
         const { nodes: newNodes, edges: newEdges } = HARDCODED_VISUALIZATION;
-
-        const edgesWithAnimation = newEdges.map((edge: any) => ({
-          ...edge,
-          animated: true,
-        }));
-
-        const { nodes: layoutedNodes, edges: layoutedEdges } =
-          getLayoutedElements(newNodes, edgesWithAnimation);
-
+        const edgesWithAnimation = newEdges.map((edge: any) => ({ ...edge, animated: true }));
+        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(newNodes, edgesWithAnimation);
         setNodes(layoutedNodes);
         setEdges(layoutedEdges);
       } catch (error) {
@@ -399,18 +398,11 @@ const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) 
         setLoading(false);
       }
     };
-
     renderHardcodedFunnel();
   }, [setNodes, setEdges, setLoading]);
 
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      fitView
-    >
+    <ReactFlow nodes={nodes} edges={edges} fitView>
       <Controls />
       <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
       <MiniMap nodeStrokeWidth={3} zoomable pannable />
@@ -421,6 +413,47 @@ const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) 
 const Funnel = () => {
   const [loading, setLoading] = useState(false);
   const [currentFactIndex, setCurrentFactIndex] = useState(0);
+  const [nodes, setNodes] = useState<any[]>(initialNodes);
+  const [edges, setEdges] = useState<any[]>(initialEdges);
+  const { businessId } = useBusinessContext();
+
+  const [chatOpen, setChatOpen] = useState(true);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
+
+  const handleSend = async () => {
+    const text = chatInput.trim();
+    if (!text) return;
+    setChatInput("");
+    setMessages((m) => [...m, { role: "user", content: text }]);
+    setChatLoading(true);
+    try {
+      const response = await fetch("http://localhost:3000/chat-funnel-edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId, message: text, nodes, edges }),
+      });
+      if (!response.ok) throw new Error("Failed to update funnel");
+      const data = await response.json();
+      const assistantMsg = data.assistant_message || "Applied changes.";
+      const { nodes: newNodes, edges: newEdges } = data.visualizationData || {};
+      if (Array.isArray(newNodes) && Array.isArray(newEdges)) {
+        const edgesWithAnimation = newEdges.map((edge: any) => ({ ...edge, animated: true }));
+        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(newNodes, edgesWithAnimation);
+        setNodes(layoutedNodes);
+        setEdges(layoutedEdges);
+      }
+      setMessages((m) => [...m, { role: "assistant", content: assistantMsg }]);
+    } catch (err: any) {
+      setMessages((m) => [
+        ...m,
+        { role: "assistant", content: `There was an error applying your change: ${err?.message || "Unknown error"}` },
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
 
   const marketingFacts = [
     "Generating a personalized funnel...",
@@ -490,7 +523,7 @@ const Funnel = () => {
             Go Back
           </Button>
         </Link>
-        <LayoutFlow setLoading={setLoading} />
+        <LayoutFlow setLoading={setLoading} nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} />
         <Link
           to="/socials"
           style={{
@@ -510,6 +543,69 @@ const Funnel = () => {
           </Button>
         </Link>
       </ReactFlowProvider>
+
+      {/* Chat panel */}
+      <Paper
+        elevation={6}
+        sx={{
+          position: "absolute",
+          right: 16,
+          bottom: 16,
+          width: 360,
+          maxHeight: 420,
+          display: chatOpen ? "flex" : "none",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        <Box sx={{ p: 1, borderBottom: "1px solid rgba(0,0,0,0.12)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Typography variant="subtitle1">Funnel Copilot</Typography>
+          <Button size="small" onClick={() => setChatOpen(false)}>Hide</Button>
+        </Box>
+        <Box sx={{ p: 1, flex: 1, overflowY: "auto", bgcolor: "background.default" }}>
+          {messages.length === 0 && (
+            <Typography variant="body2" color="text.secondary">
+              Ask for changes like: "Add TikTok under Awareness" or "Rename CTA to 'Schedule Demo'".
+            </Typography>
+          )}
+          {messages.map((m, idx) => (
+            <Box key={idx} sx={{ mb: 1.25 }}>
+              <Typography variant="caption" color={m.role === "user" ? "primary.main" : "secondary.main"}>
+                {m.role === "user" ? "You" : "Assistant"}
+              </Typography>
+              <Typography variant="body2">{m.content}</Typography>
+            </Box>
+          ))}
+          {chatLoading && <LinearProgress />}
+        </Box>
+        <Box sx={{ p: 1, display: "flex", gap: 1 }}>
+          <TextField
+            size="small"
+            fullWidth
+            placeholder="Describe your change..."
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSend();
+            }}
+          />
+          <Button variant="contained" onClick={() => handleSend()} disabled={chatLoading || !chatInput.trim()}>
+            Send
+          </Button>
+        </Box>
+      </Paper>
+
+      {/* Toggle button when hidden */}
+      {!chatOpen && (
+        <Button
+          variant="contained"
+          color="secondary"
+          sx={{ position: "absolute", right: 16, bottom: 16 }}
+          onClick={() => setChatOpen(true)}
+        >
+          Open Copilot
+        </Button>
+      )}
     </Box>
   );
 };
