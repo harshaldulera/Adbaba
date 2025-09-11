@@ -31,11 +31,28 @@ const VisuallyHiddenInput = styled("input")({
 });
 
 export default function Home() {
-    const { setBusinessId } = useBusinessContext();
+    const { setBusinessId, setBusinessData } = useBusinessContext();
     const [loading, setLoading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [businessId, setBusinessIdState] = useState(null); // State for business ID
     const { register, setValue, handleSubmit } = useForm(); // Initialize useForm
+    const [showcialLoading, setShowcialLoading] = useState(false);
+    const [showcialError, setShowcialError] = useState("");
+    const [showcialVideoUrl, setShowcialVideoUrl] = useState<string | null>(null);
+    // Handler for 'go showcial' button
+    const handleGoShowcial = async () => {
+        setShowcialLoading(true);
+        setShowcialError("");
+        setShowcialVideoUrl(null);
+        try {
+            // Navigate to social page where video generation will happen
+            navigate("/socials");
+        } catch (err: any) {
+            setShowcialError("Failed to navigate to video generation. Please try again.");
+        } finally {
+            setShowcialLoading(false);
+        }
+    };
 
     // const fetchBusinessData = async (id: any) => {
     //     const HASURA_GRAPHQL_URL = process.env.VITE_GRAPHQL_URL; // Replace with your Hasura GraphQL endpoint
@@ -149,6 +166,8 @@ export default function Home() {
     const navigate = useNavigate();
 
     const handleContinue = (data: any) => {
+        // Store business data in context
+        setBusinessData(data);
         // Handle the continue action (e.g., navigate to the next step)
         console.log("Continue with data:", data);
         navigate("/funnel");
@@ -158,6 +177,24 @@ export default function Home() {
         <Container maxWidth="lg">
             <Box sx={{ py: 8 }}>
                 <Stack spacing={4} alignItems="center" textAlign="center">
+                    {/* go showcial button and video display */}
+                    <Button
+                        variant="contained"
+                        color="secondary"
+                        onClick={handleGoShowcial}
+                        disabled={showcialLoading}
+                        sx={{ mt: 2 }}
+                    >
+                        {showcialLoading ? "Generating Video..." : "go showcial"}
+                    </Button>
+                    {showcialError && (
+                        <Typography color="error" sx={{ mt: 1 }}>{showcialError}</Typography>
+                    )}
+                    {showcialVideoUrl && (
+                        <Box sx={{ mt: 2 }}>
+                            <video src={showcialVideoUrl} controls width="400" />
+                        </Box>
+                    )}
                     <Typography variant="h2" component="h1" fontWeight="bold">
                         AI-Powered Marketing Automation
                     </Typography>
