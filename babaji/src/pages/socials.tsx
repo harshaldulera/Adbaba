@@ -8,10 +8,15 @@ import {
   LinearProgress,
   TextField,
   Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import axios from "axios";
 import { enqueueSnackbar } from "notistack";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useBusinessContext } from "../context/BusinessContext";
 
 interface Tweet {
@@ -27,12 +32,8 @@ export default function Socials() {
   const [tweets, setTweets] = useState<Tweet[]>([]);
   const [loading, setLoading] = useState(false);
   const [businessData, setBusinessData] = useState<any>({});
-
-  // Optional API base. If not provided, we will fallback to local mock generation.
-  const apiBase = useMemo(
-    () => import.meta.env.VITE_SOCIALS_API_BASE as string | undefined,
-    []
-  );
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingTweetId, setPendingTweetId] = useState<number | null>(null);
 
   useEffect(() => {
     // Example: fetch business data from backend or context
@@ -107,26 +108,34 @@ export default function Socials() {
     }
   };
 
-  const handleAccept = async (id: number) => {
+  const handleAccept = (id: number) => {
+    setPendingTweetId(id);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmSend = async () => {
+    if (pendingTweetId == null) return;
     try {
-      const tweet = tweets.find((tweet) => tweet.id === id);
+      const tweet = tweets.find((tweet) => tweet.id === pendingTweetId);
       if (!tweet) return;
-      if (!apiBase) {
-        enqueueSnackbar("Posting disabled: configure VITE_SOCIALS_API_BASE", {
-          variant: "info",
-        });
-        setTweets((prev) => prev.filter((t) => t.id !== id));
-        return;
-      }
-      await axios.post(`${apiBase}/api/post-tweet`, {
+      // Use only tweet content, no media
+      await axios.post("http://localhost:3000/post-tweet", {
         tweetText: tweet.content,
       });
       enqueueSnackbar("Tweet accepted and posted!", { variant: "success" });
-      setTweets((prev) => prev.filter((t) => t.id !== id));
+      setTweets((prev) => prev.filter((t) => t.id !== pendingTweetId));
     } catch (error) {
       console.error("Error accepting tweet:", error);
       enqueueSnackbar("Failed to post tweet", { variant: "error" });
+    } finally {
+      setConfirmOpen(false);
+      setPendingTweetId(null);
     }
+  };
+
+  const handleCancelSend = () => {
+    setConfirmOpen(false);
+    setPendingTweetId(null);
   };
 
   const handleEdit = (id: number) => {
@@ -256,6 +265,30 @@ export default function Socials() {
           </Card>
         ))}
       </div>
+      <Dialog open={confirmOpen} onClose={handleCancelSend}>
+        <DialogTitle>Confirm Tweet</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to send this tweet?
+          </DialogContentText>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="body1">
+              {pendingTweetId != null &&
+                tweets.find((t) => t.id === pendingTweetId)?.content}
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelSend}>Cancel</Button>
+          <Button
+            onClick={handleConfirmSend}
+            variant="contained"
+            color="primary"
+          >
+            Send Tweet
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }
