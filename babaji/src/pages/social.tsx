@@ -53,30 +53,62 @@ export default function Social() {
   const [businessData, setBusinessData] = useState<any>(null);
   const [dialogue, setDialogue] = useState<string>("");
 
-  // Set default dialogue based on business data
+  // Generate social media script from Gemini API
   useEffect(() => {
-    if (contextBusinessData) {
-      const defaultDialogue = `Welcome to ${
-        contextBusinessData.name || "our company"
-      }! We're revolutionizing the ${
-        contextBusinessData.industry || "industry"
-      } with innovative solutions designed for professionals like you. Our cutting-edge technology helps businesses streamline operations, increase efficiency, and drive growth. Don't miss out on this opportunity to transform your business. Contact us today and discover how we can help you achieve your goals. Visit our website or call now to get started. Your success is our mission!`;
-      setDialogue(defaultDialogue);
-      setBusinessData(contextBusinessData);
-    } else {
-      setError(
-        "No business data available. Please go back and upload your business information first."
-      );
-    }
+    const generateScript = async () => {
+      if (contextBusinessData) {
+        setLoading(true);
+        setError("");
+        setBusinessData(contextBusinessData);
+        
+        try {
+          const response = await axios.post(
+            "http://localhost:3000/generate-script",
+            {
+              businessData: contextBusinessData,
+              scriptType: "reel", // or "post" for social media posts
+            }
+          );
+
+          if (response.data.success && response.data.script) {
+            setDialogue(response.data.script);
+          } else {
+            throw new Error("Failed to generate script");
+          }
+        } catch (err: any) {
+          console.error("Error generating script:", err);
+          setError(
+            err.response?.data?.error ||
+              "Failed to generate social media script. Please try again."
+          );
+          // Fallback to a basic dialogue if API fails
+          setDialogue(
+            `Welcome to ${
+              contextBusinessData.name || "our company"
+            }! We're revolutionizing the ${
+              contextBusinessData.industry || "industry"
+            } with innovative solutions. Contact us today to learn more!`
+          );
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setError(
+          "No business data available. Please go back and upload your business information first."
+        );
+      }
+    };
+
+    generateScript();
   }, [contextBusinessData]);
 
   // Poll for video status when video is generating
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
-    if (videoData && videoData.status === "generating") {
+    if (videoData && videoData.status === "generating" && videoData.videoId) {
       interval = setInterval(() => {
-        checkVideoStatus(videoData.videoId);
+        checkVideoStatus(videoData.videoId!);
       }, 5000); // Check every 5 seconds
     }
 
@@ -195,6 +227,40 @@ export default function Social() {
     }
   };
 
+  const regenerateScript = async () => {
+    if (!contextBusinessData) {
+      setError("No business data available to generate script.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    
+    try {
+      const response = await axios.post(
+        "http://localhost:3000/generate-script",
+        {
+          businessData: contextBusinessData,
+          scriptType: "reel",
+        }
+      );
+
+      if (response.data.success && response.data.script) {
+        setDialogue(response.data.script);
+      } else {
+        throw new Error("Failed to generate script");
+      }
+    } catch (err: any) {
+      console.error("Error regenerating script:", err);
+      setError(
+        err.response?.data?.error ||
+          "Failed to regenerate social media script. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "generating":
@@ -250,17 +316,37 @@ export default function Social() {
         {!videoData && (
           <Card sx={{ mb: 3 }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Enter Your Video Dialogue
-              </Typography>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                <Typography variant="h6">
+                  AI-Generated Social Media Script
+                </Typography>
+                <Button
+                  variant="outlined"
+                  onClick={regenerateScript}
+                  disabled={loading || !contextBusinessData}
+                  startIcon={<Refresh />}
+                  size="small"
+                >
+                  Regenerate Script
+                </Button>
+              </Stack>
+              {loading && !dialogue && (
+                <Box sx={{ mb: 2 }}>
+                  <LinearProgress />
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Generating your social media script with AI...
+                  </Typography>
+                </Box>
+              )}
               <TextField
                 fullWidth
                 multiline
                 rows={6}
                 value={dialogue}
                 onChange={(e) => setDialogue(e.target.value)}
-                placeholder="Enter the dialogue text for your video..."
+                placeholder={loading && !dialogue ? "Generating script..." : "AI-generated social media script will appear here..."}
                 sx={{ mb: 2 }}
+                disabled={loading && !dialogue}
               />
               <Button
                 variant="contained"

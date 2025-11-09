@@ -4,20 +4,13 @@ require("dotenv").config();
 
 const router = express.Router();
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "<your-openai-key>";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "<your-gemini-key>";
+// Initialize Google GenAI
+const { GoogleGenAI } = require("@google/genai");
+const ai = new GoogleGenAI({});
 
-
-// const IS_OLLAMA = process.env.IS_OLLAMA === "true";
-// const IS_GEMINI = process.env.IS_GEMINI === "true";
-// const IS_OLLAMA = process.env.IS_OLLAMA === "true";
-// const IS_GEMINI = process.env.IS_GEMINI === "true" || (!process.env.IS_OLLAMA && !process.env.OPENAI_API_KEY);
-const IS_GEMINI = false;
-const IS_OLLAMA = true;
-
-// **Proceed with Hasura Mutation**
-const HASURA_GRAPHQL_URL = process.env.DOC_HASURA_GRAPHQL_URL;
-const HASURA_ADMIN_SECRET = process.env.HASURA_GRAPHQL_ADMIN_SECRET;
+// **Proceed with Hasura Mutation** - COMMENTED OUT, using data from request body instead
+// const HASURA_GRAPHQL_URL = process.env.DOC_HASURA_GRAPHQL_URL;
+// const HASURA_ADMIN_SECRET = process.env.HASURA_GRAPHQL_ADMIN_SECRET;
 
 const parseAIResponse = (response) => {
     try {
@@ -91,174 +84,86 @@ const generateVisualizationPrompt = (funnelData) => {
 
 router.post("/generate-funnel-flow", async (req, res) => {
     try {
-        const { businessId } = req.body;
-
-        if (!businessId) {
-            return res.status(400).json({ error: "Missing businessId in request." });
-        }
-
-        // Fetch business data from Hasura
-        const query = `
-        query GetBusiness($id: uuid!) {
-          businesses_by_pk(id: $id) {
-            id
-            name
-            industry
-            description
-            website
-            target_age_group
-            target_gender
-            customer_interests
-            customer_behavior
-            marketing_budget
-            customer_acquisition_cost
-            customer_lifetime_value
-            ad_spend_distribution
-            social_media_channels
-            social_followers
-            seo_rank
-            email_subscribers
-            primary_ad_channels
-            content_strategy
-            influencer_marketing
-            target_location
-          }
-        }
-      `;
-
-        const hasuraResponse = await axios.post(
-            HASURA_GRAPHQL_URL,
-            {
-                query,
-                variables: { id: businessId },
-            },
-            {
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-hasura-admin-secret": HASURA_ADMIN_SECRET,
-                },
-            }
-        );
-
-        if (hasuraResponse.data.errors) {
-            throw new Error(JSON.stringify(hasuraResponse.data.errors));
-        }
-
-        const businessData = hasuraResponse.data.data.businesses_by_pk;
+        // Get business data directly from request body (already processed from docs)
+        const { businessData } = req.body;
 
         if (!businessData) {
-            return res.status(404).json({ error: "Business not found" });
+            return res.status(400).json({ error: "Missing businessData in request. The business data should be sent directly in the request body." });
         }
 
-        // Generate marketing funnel using selected AI service
-        let funnelResponse;
+        // COMMENTED OUT: Fetch business data from Hasura - using data from request body instead
+        // const query = `
+        // query GetBusiness($id: uuid!) {
+        //   businesses_by_pk(id: $id) {
+        //     id
+        //     name
+        //     industry
+        //     description
+        //     website
+        //     target_age_group
+        //     target_gender
+        //     customer_interests
+        //     customer_behavior
+        //     marketing_budget
+        //     customer_acquisition_cost
+        //     customer_lifetime_value
+        //     ad_spend_distribution
+        //     social_media_channels
+        //     social_followers
+        //     seo_rank
+        //     email_subscribers
+        //     primary_ad_channels
+        //     content_strategy
+        //     influencer_marketing
+        //     target_location
+        //   }
+        // }
+        // `;
+
+        // const hasuraResponse = await axios.post(
+        //     HASURA_GRAPHQL_URL,
+        //     {
+        //         query,
+        //         variables: { id: businessId },
+        //     },
+        //     {
+        //         headers: {
+        //             "Content-Type": "application/json",
+        //             "x-hasura-admin-secret": HASURA_ADMIN_SECRET,
+        //         },
+        //     }
+        // );
+
+        // if (hasuraResponse.data.errors) {
+        //     throw new Error(JSON.stringify(hasuraResponse.data.errors));
+        // }
+
+        // const businessData = hasuraResponse.data.data.businesses_by_pk;
+
+        // if (!businessData) {
+        //     return res.status(404).json({ error: "Business not found" });
+        // }
+
+        // Generate marketing funnel using Gemini
         const marketingPrompt = generateMarketingFunnelPrompt(businessData);
 
-        if (IS_OLLAMA) {
-            const ollamaResponse = await axios.post(
-                "http://127.0.0.1:11434/api/generate",
-                {
-                    model: "llama3",
-                    prompt: marketingPrompt,
-                    stream: false,
-                }, { timeout: 300000 }
-            );
-            funnelResponse = ollamaResponse.data.response;
-        } else if (IS_GEMINI) {
-            const geminiResponse = await axios.post(
-                `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${GEMINI_API_KEY}`,
-                {
-                    contents: [
-                        {
-                            parts: [{ text: marketingPrompt }],
-                        },
-                    ],
-                }
-            );
-            funnelResponse =
-                geminiResponse.data.candidates[0]?.content?.parts[0]?.text;
-        } else {
-            const openAiResponse = await axios.post(
-                "https://api.openai.com/v1/chat/completions",
-                {
-                    model: "gpt-3.5-turbo",
-                    messages: [
-                        {
-                            role: "system",
-                            content: "You are an expert in marketing funnel strategies.",
-                        },
-                        {
-                            role: "user",
-                            content: marketingPrompt,
-                        },
-                    ],
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${OPENAI_API_KEY}`,
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
-            funnelResponse = openAiResponse.data.choices[0]?.message?.content;
-        }
+        const funnelResponseObj = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: marketingPrompt,
+        });
+        const funnelResponse = funnelResponseObj.text;
 
         const parsedFunnelResponse = parseAIResponse(funnelResponse);
 
         // Generate visualization data
-        let visualizationResponse;
         const visualizationPrompt =
             generateVisualizationPrompt(parsedFunnelResponse);
 
-        if (IS_OLLAMA) {
-            const visualOllamaResponse = await axios.post(
-                "http://localhost:11434/api/generate",
-                {
-                    model: "llama3",
-                    prompt: visualizationPrompt,
-                    stream: false,
-                }, { timeout: 300000 }
-            );
-            visualizationResponse = visualOllamaResponse.data.response;
-        } else if (IS_GEMINI) {
-            const visualGeminiResponse = await axios.post(
-                `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${GEMINI_API_KEY}`,
-                {
-                    contents: [
-                        {
-                            parts: [{ text: visualizationPrompt }],
-                        },
-                    ],
-                }
-            );
-            visualizationResponse =
-                visualGeminiResponse.data.candidates[0]?.content?.parts[0]?.text;
-        } else {
-            const visualOpenAiResponse = await axios.post(
-                "https://api.openai.com/v1/chat/completions",
-                {
-                    model: "gpt-3.5-turbo",
-                    messages: [
-                        {
-                            role: "system",
-                            content: "You are a data visualization expert.",
-                        },
-                        {
-                            role: "user",
-                            content: visualizationPrompt,
-                        },
-                    ],
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${OPENAI_API_KEY}`,
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
-            visualizationResponse =
-                visualOpenAiResponse.data.choices[0]?.message?.content;
-        }
+        const visualizationResponseObj = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: visualizationPrompt,
+        });
+        const visualizationResponse = visualizationResponseObj.text;
 
         const parsedVisualizationResponse = parseAIResponse(visualizationResponse);
 

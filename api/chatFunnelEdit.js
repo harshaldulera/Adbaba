@@ -1,14 +1,10 @@
 const express = require("express");
-const axios = require("axios");
 require("dotenv").config();
 
 const router = express.Router();
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "<your-openai-key>";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "<your-gemini-key>";
-
-const IS_GEMINI = false;
-const IS_OLLAMA = true;
+const { GoogleGenAI } = require("@google/genai");
+const ai = new GoogleGenAI({});
 
 function buildEditPrompt({ businessId, message, nodes, edges }) {
   const graph = { nodes, edges };
@@ -60,34 +56,12 @@ router.post("/chat-funnel-edit", async (req, res) => {
 
     const prompt = buildEditPrompt({ businessId, message, nodes, edges });
 
-    let responseText;
-    if (IS_OLLAMA) {
-      const ollamaResponse = await axios.post(
-        "http://localhost:11434/api/generate",
-        { model: "llama3", prompt, stream: false },
-        { timeout: 300000 }
-      );
-      responseText = ollamaResponse.data.response;
-    } else if (IS_GEMINI) {
-      const geminiResponse = await axios.post(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${GEMINI_API_KEY}`,
-        { contents: [{ parts: [{ text: prompt }] }] }
-      );
-      responseText = geminiResponse.data.candidates?.[0]?.content?.parts?.[0]?.text;
-    } else {
-      const openaiResponse = await axios.post(
-        "https://api.openai.com/v1/chat/completions",
-        {
-          model: "gpt-3.5-turbo",
-          messages: [
-            { role: "system", content: "You are an expert marketing strategist and graph editor." },
-            { role: "user", content: prompt },
-          ],
-        },
-        { headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" } }
-      );
-      responseText = openaiResponse.data.choices?.[0]?.message?.content;
-    }
+    // Generate response using Gemini
+    const responseObj = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+    const responseText = responseObj.text;
 
     const parsed = parseAIResponse(responseText);
 
