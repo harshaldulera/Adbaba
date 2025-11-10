@@ -10,6 +10,15 @@ const ai = new GoogleGenAI({});
 const generateSocialMediaScriptPrompt = (businessData, scriptType = "reel") => {
     const type = scriptType === "reel" ? "short-form video reel" : "social media post";
     
+    // NOTE: RAG Model Enhancement
+    // In production, we would use the RAG model to retrieve relevant social media script patterns,
+    // hooks, CTAs, and best practices from our knowledge base before generating the script.
+    // This would enhance script quality by augmenting the AI prompt with proven script patterns.
+    // See api/ragModel.js for the RAG implementation.
+    // const ragModel = require("./ragModel");
+    // const retrievedKnowledge = ragModel.retrieveRelevantScriptKnowledge(businessData, scriptType, 5);
+    // const ragContext = ragModel.augmentScriptPromptWithRAG("", retrievedKnowledge, scriptType);
+    
     return `You are an expert social media content creator. Generate an engaging ${type} script for the following business.
 
 Business Information:
