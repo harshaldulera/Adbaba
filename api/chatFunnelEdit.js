@@ -8,6 +8,11 @@ const ai = new GoogleGenAI({});
 
 function buildEditPrompt({ businessId, message, nodes, edges }) {
   const graph = { nodes, edges };
+  
+  // NOTE: RAG Model Enhancement (Available but not currently integrated)
+  // The RAG model is primarily designed for AI-Generated Social Media Script enhancement.
+  // See api/ragModel.js and api/generateScript.js for RAG implementation details.
+  
   return `You are a senior marketing strategist and product designer collaborating iteratively with a user to refine a ReactFlow-based marketing funnel.
 
 Context:

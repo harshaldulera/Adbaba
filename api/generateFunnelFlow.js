@@ -91,6 +91,10 @@ router.post("/generate-funnel-flow", async (req, res) => {
             return res.status(400).json({ error: "Missing businessData in request. The business data should be sent directly in the request body." });
         }
 
+        // NOTE: RAG Model Enhancement 
+        // The RAG model is primarily designed for AI-Generated Social Media Script enhancement.
+        // See api/ragModel.js and api/generateScript.js for RAG implementation details.
+
         // COMMENTED OUT: Fetch business data from Hasura - using data from request body instead
         // const query = `
         // query GetBusiness($id: uuid!) {
@@ -144,7 +148,6 @@ router.post("/generate-funnel-flow", async (req, res) => {
         //     return res.status(404).json({ error: "Business not found" });
         // }
 
-        // Generate marketing funnel using Gemini
         const marketingPrompt = generateMarketingFunnelPrompt(businessData);
 
         const funnelResponseObj = await ai.models.generateContent({

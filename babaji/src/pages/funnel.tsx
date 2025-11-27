@@ -29,32 +29,71 @@ const getLayoutedElements = (nodes: any[], edges: any[]) => {
         return { nodes, edges };
     }
 
+    // Find all root nodes (nodes that are never targets in edges)
+    const targetIds = new Set(edges.map((e: any) => e.target));
+    const rootNodes = nodes.filter((node: any) => !targetIds.has(node.id));
+    
+    // If there are multiple roots, create a virtual root node
+    let nodesToLayout = nodes;
+    let edgesToLayout = edges;
+    let virtualRootId: string | null = null;
+    
+    if (rootNodes.length > 1) {
+        // Create a virtual root node
+        virtualRootId = "__virtual_root__";
+        const virtualRoot = {
+            id: virtualRootId,
+            position: { x: 0, y: 0 },
+            data: { label: "Root" }
+        };
+        
+        // Add virtual root to nodes
+        nodesToLayout = [virtualRoot, ...nodes];
+        
+        // Create edges from virtual root to all root nodes
+        const virtualEdges = rootNodes.map((rootNode: any, index: number) => ({
+            id: `__virtual_edge_${index}__`,
+            source: virtualRootId,
+            target: rootNode.id
+        }));
+        
+        edgesToLayout = [...virtualEdges, ...edges];
+    }
+
     // Create a hierarchy from the nodes and edges
     const hierarchy = stratify()
         .id((d: any) => d.id)
         .parentId((d: any) => {
             // for each node, find if there's an edge whose `target` is this node
             // that edge's `source` is the parent
-            const parentEdge = edges.find((edge) => edge.target === d.id);
+            const parentEdge = edgesToLayout.find((edge: any) => edge.target === d.id);
             return parentEdge?.source || null;
         });
 
-    const root = hierarchy(nodes);
+    const root = hierarchy(nodesToLayout);
 
     // Configure d3 tree layout
     const treeLayout = tree().nodeSize([nodeWidth * 2, nodeHeight * 4]);
     const layout = treeLayout(root);
 
     // Map the d3-hierarchy positions back to React Flow positions
-    const layoutedNodes = layout.descendants().map((node) => ({
-        ...(node.data as any),
-        position: {
-            x: node.x - nodeWidth / 2,
-            y: node.y - nodeHeight / 2,
-        },
-    }));
+    // Filter out the virtual root if it was created
+    const layoutedNodes = layout.descendants()
+        .filter((node: any) => node.data.id !== virtualRootId)
+        .map((node: any) => ({
+            ...(node.data as any),
+            position: {
+                x: node.x - nodeWidth / 2,
+                y: node.y - nodeHeight / 2,
+            },
+        }));
 
-    return { nodes: layoutedNodes, edges };
+    // Filter out virtual edges from the returned edges
+    const filteredEdges = virtualRootId 
+        ? edges.filter((e: any) => !e.id?.startsWith("__virtual_edge_"))
+        : edges;
+
+    return { nodes: layoutedNodes, edges: filteredEdges };
 };
 
 const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) => {

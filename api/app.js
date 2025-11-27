@@ -7,6 +7,8 @@ const generateFunnelFlowRouter = require("./generateFunnelFlow");
 const chatFunnelEditRouter = require("./chatFunnelEdit");
 const generateVideoRouter = require("./generateVideo");
 const generateScriptRouter = require("./generateScript");
+// RAG Model - Available for demo/pitch purposes
+const ragModelRouter = require("./ragModel");
 
 const app = express();
 app.use(express.json());
@@ -19,6 +21,8 @@ app.use(generateFunnelFlowRouter);
 app.use(chatFunnelEditRouter);
 app.use(generateVideoRouter);
 app.use(generateScriptRouter);
+// RAG Model endpoint available at /rag-enhanced-funnel (demo mode)
+app.use(ragModelRouter);
 
 app.get("/", (req, res) => {
     res.send("Welcome to the HeyGen & AI Document Processing API!");

@@ -10,29 +10,23 @@ const ai = new GoogleGenAI({});
 const generateSocialMediaScriptPrompt = (businessData, scriptType = "reel") => {
     const type = scriptType === "reel" ? "short-form video reel" : "social media post";
     
-    return `You are an expert social media content creator. Generate a compelling spoken narration for a ${type} for the following business.
+    return `You are an expert social media content creator. Generate an engaging ${type} script for the following business.
 
 Business Information:
 ${JSON.stringify(businessData, null, 2)}
 
 Requirements:
-1. Create a compelling, engaging spoken narrative that captures attention immediately.
-2. Make it authentic, conversational, and relatable to the target audience.
-3. Include a clear call-to-action.
-4. Keep it concise (approx. 30-60 seconds of speaking time).
-5. Use the business name, industry, and key value propositions naturally.
-6. Make it feel personal and authentic, not corporate or salesy.
-7. Include emotional hooks and storytelling elements.
+1. Create a compelling, engaging ${type} script that captures attention within the first 3 seconds
+2. Make it authentic, conversational, and relatable to the target audience
+3. Include a clear call-to-action
+4. Keep it concise and punchy (for reels: 15-60 seconds, for posts: engaging and scannable)
+5. Use the business name, industry, and key value propositions naturally
+6. Make it feel personal and authentic, not corporate or salesy
+7. Include emotional hooks and storytelling elements
+8. For reels: Make it suitable for video narration with natural pauses and emphasis
+9. For posts: Make it engaging with hooks, value, and clear CTA
 
-CRITICAL OUTPUT INSTRUCTIONS:
-- Output ONLY the raw spoken text.
-- The output must be a single continuous paragraph.
-- ABSOLUTELY NO visual descriptions (e.g., no "Visual:", "Scene:", "Cut to:", "Shot of...").
-- ABSOLUTELY NO character/speaker labels (e.g., no "Voiceover:", "Narrator:", "Me:").
-- ABSOLUTELY NO timecodes (e.g., no "(0-3s)", "[15s]").
-- ABSOLUTELY NO markdown formatting (no bold, italics, headers).
-- Do not include any introductory or concluding remarks.
-- The output must be ready to be fed directly into a Text-to-Speech engine.`;
+Return ONLY the script text, no markdown, no explanations, just the script content that can be directly used.`;
 };
 
 router.post("/generate-script", async (req, res) => {
