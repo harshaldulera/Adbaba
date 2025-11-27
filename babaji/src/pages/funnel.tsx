@@ -9,13 +9,14 @@ import ReactFlow, {
     Controls,
 } from "reactflow";
 import { stratify, tree } from "d3-hierarchy";
-import { Box, LinearProgress, Typography, Button } from "@mui/material";
+import { Box, Button } from "@mui/material";
 import { Link } from "react-router-dom";
 import { ArrowForward } from "@mui/icons-material";
 import "reactflow/dist/style.css";
 
 import { useBusinessContext } from "../context/BusinessContext";
 import { ArrowBack } from "@mui/icons-material";
+import WarRoomLoader from "../components/WarRoomLoader";
 
 const initialNodes: any[] = [];
 const initialEdges: any[] = [];
@@ -61,7 +62,7 @@ const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) 
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   
     // Get business data from context
-    const { businessData } = useBusinessContext();
+    const { businessData, funnelPromise } = useBusinessContext();
     
     // Cache for storing API responses (using useRef to avoid re-renders)
     const cacheRef = useRef<{ [key: string]: any }>({});
@@ -101,6 +102,36 @@ const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) 
           setNodes(layoutedNodes);
           setEdges(layoutedEdges);
           return;
+        }
+
+        // Check for pre-fetched promise
+        if (funnelPromise) {
+            console.log("Using pre-fetched funnel promise");
+            setLoading(true);
+            try {
+                const data = await funnelPromise;
+                if (data) {
+                    console.log("Pre-fetched data received:", data);
+                    cacheRef.current[currentHash] = data;
+                    lastBusinessDataHashRef.current = currentHash;
+
+                    const { nodes: newNodes, edges: newEdges } = data.visualizationData;
+                    const edgesWithAnimation = newEdges.map((edge: any) => ({
+                        ...edge,
+                        animated: true,
+                    }));
+                    const { nodes: layoutedNodes, edges: layoutedEdges } =
+                        getLayoutedElements(newNodes, edgesWithAnimation);
+
+                    setNodes(layoutedNodes);
+                    setEdges(layoutedEdges);
+                }
+            } catch (error) {
+                console.error("Error using pre-fetched data:", error);
+            } finally {
+                setLoading(false);
+            }
+            return;
         }
 
         // Business data has changed or no cache exists - call API
@@ -169,26 +200,6 @@ const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) 
   
   const Funnel = () => {
     const [loading, setLoading] = useState(false); // State to manage loading
-    const [currentFactIndex, setCurrentFactIndex] = useState(0); // State for current fact
-    const marketingFacts = [
-      "Generating a personalized funnel...",
-      "We create solutions tailored to your needs.",
-      "Your success is our priority.",
-      "Data-driven insights for better decisions.",
-      "Streamlining your processes for efficiency.",
-    ];
-  
-    useEffect(() => {
-      let interval: NodeJS.Timeout;
-      if (loading) {
-        interval = setInterval(() => {
-          setCurrentFactIndex(
-            (prevIndex) => (prevIndex + 1) % marketingFacts.length
-          );
-        }, 3000); // Change fact every 2 seconds
-      }
-      return () => clearInterval(interval); // Cleanup interval on unmount
-    }, [loading]);
   
     return (
       <Box
@@ -199,30 +210,7 @@ const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) 
           bgcolor: "primary.main",
         }}
       >
-        {loading && (
-          <Box
-            sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.5)", // Semi-transparent background
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 1000, // Ensure it is on top
-            }}
-          >
-            <LinearProgress sx={{ width: "50%", marginBottom: 2 }} />{" "}
-            {/* Centered progress bar */}
-            <Typography variant="h6" sx={{ color: "white", marginBottom: 2 }}>
-              {marketingFacts[currentFactIndex]}{" "}
-              {/* Display current marketing fact */}
-            </Typography>
-          </Box>
-        )}
+        {loading && <WarRoomLoader />}
         <ReactFlowProvider>
           <Link
             to="/"

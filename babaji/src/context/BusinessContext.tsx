@@ -24,6 +24,8 @@ interface BusinessContextType {
     setBusinessId: (id: string | null) => void;
     businessData: BusinessData | null;
     setBusinessData: (data: BusinessData | null) => void;
+    funnelPromise: Promise<any> | null;
+    preFetchFunnel: (data: BusinessData) => void;
 }
 
 const BusinessContext = createContext<BusinessContextType | undefined>(undefined);
@@ -31,9 +33,44 @@ const BusinessContext = createContext<BusinessContextType | undefined>(undefined
 export function BusinessProvider({ children }: { children: ReactNode }) {
     const [ businessId, setBusinessId ] = useState<string | null>("0627adf0-4164-40a7-8c9e-738ed88f4dcf");
     const [ businessData, setBusinessData ] = useState<BusinessData | null>(null);
+    const [ funnelPromise, setFunnelPromise ] = useState<Promise<any> | null>(null);
+    const [ lastFetchedDataHash, setLastFetchedDataHash ] = useState<string>("");
+
+    const preFetchFunnel = (data: BusinessData) => {
+        const currentHash = JSON.stringify(data);
+        if (currentHash === lastFetchedDataHash) {
+            console.log("Data hasn't changed, skipping pre-fetch");
+            return;
+        }
+
+        console.log("Starting speculative pre-fetch...");
+        const promise = fetch("http://localhost:3000/generate-funnel-flow", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ businessData: data }),
+        })
+        .then(res => {
+            if (!res.ok) throw new Error("Failed to fetch funnel data");
+            return res.json();
+        })
+        .catch(err => {
+            console.error("Pre-fetch failed:", err);
+            return null; // Return null on failure so we can retry or handle it
+        });
+
+        setFunnelPromise(promise);
+        setLastFetchedDataHash(currentHash);
+    };
 
     return (
-        <BusinessContext.Provider value={{ businessId, setBusinessId, businessData, setBusinessData }}>
+        <BusinessContext.Provider value={{ 
+            businessId, 
+            setBusinessId, 
+            businessData, 
+            setBusinessData,
+            funnelPromise,
+            preFetchFunnel
+        }}>
             {children}
         </BusinessContext.Provider>
     );

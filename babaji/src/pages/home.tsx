@@ -13,7 +13,7 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { styled } from "@mui/material/styles";
 import axios from "axios";
 import { useBusinessContext } from "../context/BusinessContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 
@@ -31,14 +31,18 @@ const VisuallyHiddenInput = styled("input")({
 });
 
 export default function Home() {
-    const { setBusinessId, setBusinessData } = useBusinessContext();
+    const { setBusinessId, setBusinessData, preFetchFunnel } = useBusinessContext();
     const [loading, setLoading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [businessId, setBusinessIdState] = useState(null); // State for business ID
-    const { register, setValue, handleSubmit } = useForm(); // Initialize useForm
+    const { register, setValue, handleSubmit, watch } = useForm(); // Initialize useForm
     const [showcialLoading, setShowcialLoading] = useState(false);
     const [showcialError, setShowcialError] = useState("");
     const [showcialVideoUrl, setShowcialVideoUrl] = useState<string | null>(null);
+    const [uploadError, setUploadError] = useState("");
+    
+    const navigate = useNavigate();
+
     // Handler for 'go showcial' button
     const handleGoShowcial = async () => {
         setShowcialLoading(true);
@@ -54,58 +58,6 @@ export default function Home() {
         }
     };
 
-    // const fetchBusinessData = async (id: any) => {
-    //     const HASURA_GRAPHQL_URL = process.env.VITE_GRAPHQL_URL; // Replace with your Hasura GraphQL endpoint
-    //     const HASURA_ADMINN_SECRET = process.env.HASURA_ADMIN_SECRET; // Your Hasura admin secret
-
-    //     if (!HASURA_GRAPHQL_URL || !HASURA_ADMINN_SECRET) {
-    //         throw new Error("Missing required environment variables");
-    //     }
-
-    //     const query = `
-    //     query displayFormData($id: uuid!) {
-    //       businesses(where: {id: {_eq: $id}}) {
-    //         name
-    //         industry
-    //         description
-    //         website
-    //         founded_year
-    //         hq_location
-    //         business_size
-    //         target_age_group
-    //         target_gender
-    //         customer_interests
-    //         customer_behavior
-    //         marketing_budget
-    //         customer_acquisition_cost
-    //         content_strategy
-    //         target_location
-    //       }
-    //     }
-    //   `;
-
-    //     try {
-    //         const response = await axios.post(
-    //             HASURA_GRAPHQL_URL,
-    //             {
-    //                 query,
-    //                 variables: { id },
-    //             },
-    //             {
-    //                 headers: {
-    //                     "Content-Type": "application/json",
-    //                     "x-hasura-admin-secret": HASURA_ADMINN_SECRET,
-    //                 },
-    //             }
-    //         );
-
-    //         return response.data.data.businesses[0]; // Return the first business data
-    //     } catch (error) {
-    //         console.error("Error fetching business data:", error);
-    //         throw error;
-    //     }
-    // };
-
     const handleFileUpload = async (event: any) => {
         const file = event.target.files?.[0];
         if (file) {
@@ -114,6 +66,7 @@ export default function Home() {
 
             setLoading(true);
             setProgress(0);
+            setUploadError("");
 
             try {
                 const response = await axios.post(
@@ -153,17 +106,20 @@ export default function Home() {
                     }
                 });
 
+                // Trigger speculative pre-fetch immediately with the new data
+                preFetchFunnel(businessData);
+
                 // Simulate a 5-second loading time
                 await new Promise((resolve) => setTimeout(resolve, 5000));
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Error uploading file:", error);
+                setUploadError(error.response?.data?.error || "An error occurred during upload. Please try again.");
             } finally {
                 setLoading(false);
                 setProgress(100);
             }
         }
     };
-    const navigate = useNavigate();
 
     const handleContinue = (data: any) => {
         // Store business data in context
@@ -172,6 +128,21 @@ export default function Home() {
         console.log("Continue with data:", data);
         navigate("/funnel");
     };
+
+    // Watch for form changes and trigger speculative pre-fetch
+    useEffect(() => {
+        const subscription = watch((value, { name, type }) => {
+            if (type === 'change') {
+                const handler = setTimeout(() => {
+                    console.log("Form changed, triggering pre-fetch...", value);
+                    preFetchFunnel(value as any);
+                }, 2000); // 2 second debounce
+
+                return () => clearTimeout(handler);
+            }
+        });
+        return () => subscription.unsubscribe();
+    }, [watch, preFetchFunnel]);
 
     return (
         <Container maxWidth="lg">
@@ -219,6 +190,12 @@ export default function Home() {
                         <Box sx={{ width: "100%", mt: 4 }}>
                             <LinearProgress color="primary" value={progress} />
                         </Box>
+                    )}
+
+                    {uploadError && (
+                        <Typography color="error" sx={{ mt: 2 }}>
+                            {uploadError}
+                        </Typography>
                     )}
 
                     {/* Update the form section to include all available fields */}

@@ -440,6 +440,14 @@ mutation MyMutation($object: businesses_insert_input!) {
             "Error processing document:",
             error.response?.data || error.message
         );
+
+        if (error.response?.status === 429 || error.message?.includes("Quota exceeded")) {
+             return res.status(429).json({
+                error: "Gemini API quota exceeded. Please try again later.",
+                details: error.response?.data || error.message
+            });
+        }
+
         return res.status(500).json({ error: error.message });
     }
 });
