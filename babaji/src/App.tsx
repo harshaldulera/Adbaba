@@ -4,6 +4,7 @@ import { BusinessProvider } from "./context/BusinessContext";
 import Home from "./pages/home";
 import Funnel from "./pages/funnel";
 import Social from "./pages/social";
+import PostToSocial from "./pages/postToSocial";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/funnel" element={<Funnel />} />
             <Route path="/socials" element={<Social />} />
+            <Route path="/post-to-social" element={<PostToSocial />} />
           </Routes>
         </Router>
       </BusinessProvider>

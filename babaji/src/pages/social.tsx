@@ -60,6 +60,11 @@ export default function Social() {
         setLoading(true);
         setError("");
         setBusinessData(contextBusinessData);
+
+        localStorage.setItem(
+          "businessData",
+          JSON.stringify(contextBusinessData || {})
+        );
         
         try {
           const response = await axios.post(
@@ -79,14 +84,12 @@ export default function Social() {
           console.error("Error generating script:", err);
           setError(
             err.response?.data?.error ||
-              "Failed to generate social media script. Please try again."
+            "Failed to generate social media script. Please try again."
           );
           // Fallback to a basic dialogue if API fails
           setDialogue(
-            `Welcome to ${
-              contextBusinessData.name || "our company"
-            }! We're revolutionizing the ${
-              contextBusinessData.industry || "industry"
+            `Welcome to ${contextBusinessData.name || "our company"
+            }! We're revolutionizing the ${contextBusinessData.industry || "industry"
             } with innovative solutions. Contact us today to learn more!`
           );
         } finally {
@@ -122,32 +125,22 @@ export default function Social() {
     setError("");
 
     try {
-      if (!dialogue.trim()) {
-        throw new Error("Please enter dialogue text");
-      }
+      const response = await axios.post("http://localhost:3000/generate-video", {
+        dialogue,
+      });
 
-      const response = await axios.post(
-        "http://localhost:3000/generate-video",
-        {
-          dialogue: dialogue,
-        }
-      );
+      const videoId = response.data.videoId;
 
-      if (response.data.videoId) {
-        setVideoData({
-          videoId: response.data.videoId,
-          script: dialogue,
-          status: "generating",
-        });
-      } else {
-        throw new Error("Failed to start video generation");
-      }
-    } catch (err: any) {
-      console.error("Error generating video:", err);
-      setError(
-        err.response?.data?.error ||
-          "Failed to generate video. Please try again."
-      );
+      // SAVE to localStorage
+      localStorage.setItem("videoId", videoId);
+      localStorage.setItem("videoScript", dialogue);
+
+      // Redirect user to Posting page immediately
+      navigate("/post-to-social"); // ← create this page
+
+    } catch (err) {
+      console.error(err);
+      setError("Failed to generate video");
     } finally {
       setLoading(false);
     }
@@ -172,11 +165,11 @@ export default function Social() {
         setVideoData((prev) =>
           prev
             ? {
-                ...prev,
-                status: status === "completed" ? "completed" : "generating",
-                videoUrl: video_url || prev.videoUrl,
-                thumbnailUrl: thumbnail_url || prev.thumbnailUrl,
-              }
+              ...prev,
+              status: status === "completed" ? "completed" : "generating",
+              videoUrl: video_url || prev.videoUrl,
+              thumbnailUrl: thumbnail_url || prev.thumbnailUrl,
+            }
             : null
         );
       } else {
@@ -184,10 +177,10 @@ export default function Social() {
         setVideoData((prev) =>
           prev
             ? {
-                ...prev,
-                status: "failed",
-                error: response.data.message || "Video generation failed",
-              }
+              ...prev,
+              status: "failed",
+              error: response.data.message || "Video generation failed",
+            }
             : null
         );
       }
@@ -196,10 +189,10 @@ export default function Social() {
       setVideoData((prev) =>
         prev
           ? {
-              ...prev,
-              status: "failed",
-              error: "Failed to check video status",
-            }
+            ...prev,
+            status: "failed",
+            error: "Failed to check video status",
+          }
           : null
       );
     }
@@ -235,7 +228,7 @@ export default function Social() {
 
     setLoading(true);
     setError("");
-    
+
     try {
       const response = await axios.post(
         "http://localhost:3000/generate-script",
@@ -254,7 +247,7 @@ export default function Social() {
       console.error("Error regenerating script:", err);
       setError(
         err.response?.data?.error ||
-          "Failed to regenerate social media script. Please try again."
+        "Failed to regenerate social media script. Please try again."
       );
     } finally {
       setLoading(false);
@@ -413,13 +406,13 @@ export default function Social() {
 
                 {videoData.status === "completed" && videoData.videoUrl && (
                   <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
-                     <Button
-                       variant="contained"
-                       startIcon={<PlayArrow />}
-                       onClick={() => setShowScript(true)}
-                     >
-                       View Dialogue
-                     </Button>
+                    <Button
+                      variant="contained"
+                      startIcon={<PlayArrow />}
+                      onClick={() => setShowScript(true)}
+                    >
+                      View Dialogue
+                    </Button>
                     <Button
                       variant="outlined"
                       startIcon={<Download />}
@@ -427,23 +420,23 @@ export default function Social() {
                     >
                       Download
                     </Button>
-                     <Button
-                       variant="outlined"
-                       startIcon={<Share />}
-                       onClick={handleShare}
-                     >
-                       Share
-                     </Button>
-                     <Button
-                       variant="outlined"
-                       startIcon={<Refresh />}
-                       onClick={() => {
-                         setVideoData(null);
-                         setError("");
-                       }}
-                     >
-                       New Video
-                     </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<Share />}
+                      onClick={handleShare}
+                    >
+                      Share
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<Refresh />}
+                      onClick={() => {
+                        setVideoData(null);
+                        setError("");
+                      }}
+                    >
+                      New Video
+                    </Button>
                   </Stack>
                 )}
 
@@ -529,13 +522,13 @@ export default function Social() {
         )}
 
         {/* Script Dialog */}
-         <Dialog
-           open={showScript}
-           onClose={() => setShowScript(false)}
-           maxWidth="md"
-           fullWidth
-         >
-           <DialogTitle>Video Dialogue</DialogTitle>
+        <Dialog
+          open={showScript}
+          onClose={() => setShowScript(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>Video Dialogue</DialogTitle>
           <DialogContent>
             <Typography
               variant="body1"

@@ -149,7 +149,7 @@ export default function Home() {
             <Box sx={{ py: 8 }}>
                 <Stack spacing={4} alignItems="center" textAlign="center">
                     {/* go showcial button and video display */}
-                    <Button
+                    {/* <Button
                         variant="contained"
                         color="secondary"
                         onClick={handleGoShowcial}
@@ -157,7 +157,7 @@ export default function Home() {
                         sx={{ mt: 2 }}
                     >
                         {showcialLoading ? "Generating Video..." : "go showcial"}
-                    </Button>
+                    </Button> */}
                     {showcialError && (
                         <Typography color="error" sx={{ mt: 1 }}>{showcialError}</Typography>
                     )}
