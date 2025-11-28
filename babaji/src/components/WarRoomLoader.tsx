@@ -9,7 +9,6 @@ const pulse = keyframes`
 
 const messages = [
   "Analyzing Brand Voice...",
-  "Identifying TOFU/MOFU Triggers...",
   "Calculating Conversion Logic...",
   "Drafting Node Architecture...",
   "Optimizing Funnel Flow...",

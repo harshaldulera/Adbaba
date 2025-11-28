@@ -6,17 +6,20 @@ import {
     Card,
     CardContent,
     Typography,
-    LinearProgress,
     Dialog,
     DialogTitle,
     DialogContent,
     DialogActions,
     TextField,
     Stack,
-    Alert
+    Alert,
+    Container,
+    Grid,
+    useTheme
 } from "@mui/material";
 
 export default function PostToSocial() {
+    const theme = useTheme();
     const videoId = localStorage.getItem("videoId");
     const script = localStorage.getItem("videoScript");
 
@@ -142,136 +145,183 @@ export default function PostToSocial() {
     };
 
     return (
-        <Box sx={{ p: 4 }}>
-            <Typography variant="h4" sx={{ mb: 3 }} fontWeight="bold">
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+            <Typography variant="h5" sx={{ mb: 3 }} fontWeight="bold">
                 Post to Social Media
             </Typography>
 
             {status !== "completed" && (
-                <Alert severity="info" sx={{ mb: 3 }}>
+                <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
                     Your video is still being generated… prepare your social media posts meanwhile.
                 </Alert>
             )}
 
-            {/* TWITTER BOX */}
-            <Card sx={{ mb: 3 }}>
-                <CardContent>
-                    <Typography variant="h6" sx={{ mb: 2 }}>
-                        Twitter Post
-                    </Typography>
-
-                    <Button
-                        variant="contained"
-                        onClick={generateTweet}
-                        disabled={tweetLoading}
+            <Grid container spacing={3}>
+                {/* TWITTER BOX */}
+                <Grid item xs={12} md={6}>
+                    <Card
+                        elevation={3}
+                        sx={{
+                            height: "100%",
+                            border: `1px solid ${theme.palette.divider}`,
+                            background: "rgba(255, 255, 255, 0.05)",
+                            backdropFilter: "blur(10px)",
+                        }}
                     >
-                        {tweetLoading ? "Generating tweet..." : "Generate Tweet with AI"}
-                    </Button>
+                        <CardContent>
+                            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+                                Twitter Post
+                            </Typography>
 
-                    <TextField
-                        label="Generated Tweet"
-                        multiline
-                        fullWidth
-                        rows={4}
-                        sx={{ mt: 2 }}
-                        value={tweet}
-                        onChange={(e) => setTweet(e.target.value)}
-                    />
-
-                    <Stack direction="row" justifyContent="flex-end" sx={{ mt: 2 }}>
-                        <Button
-                            variant="outlined"
-                            color="primary"
-                            disabled={!tweet}
-                            onClick={postTweetToTwitter}
-                        >
-                            Post to Twitter
-                        </Button>
-                    </Stack>
-                </CardContent>
-            </Card>
-
-            {/* ================================
-                INSTAGRAM BOX
-            ================================= */}
-            <Card sx={{ mb: 3 }}>
-                <CardContent>
-                    <Typography variant="h6" sx={{ mb: 2 }}>
-                        Instagram Post
-                    </Typography>
-
-                    <Stack spacing={2}>
-                        <Button variant="contained" component="label">
-                            Upload Image
-                            <input hidden type="file" accept="image/*" onChange={handleImageUpload} />
-                        </Button>
-
-                        {igPreview && (
-                            <img
-                                src={igPreview}
-                                alt="preview"
-                                style={{
-                                    width: "200px",
-                                    borderRadius: "8px",
-                                    marginTop: "10px",
-                                }}
-                            />
-                        )}
-
-                        <Button
-                            variant="contained"
-                            onClick={generateInstagramCaption}
-                            disabled={igLoading}
-                        >
-                            {igLoading ? "Generating caption…" : "Generate Instagram Caption"}
-                        </Button>
-
-                        <TextField
-                            label="Instagram Caption"
-                            multiline
-                            fullWidth
-                            rows={4}
-                            value={igCaption}
-                            onChange={(e) => setIgCaption(e.target.value)}
-                        />
-
-                        <Stack direction="row" justifyContent="flex-end">
                             <Button
-                                variant="outlined"
-                                color="secondary"
-                                disabled={!igImage}
-                                onClick={postToInstagram}
+                                variant="contained"
+                                onClick={generateTweet}
+                                disabled={tweetLoading}
+                                size="small"
+                                sx={{ mb: 2 }}
                             >
-                                Post to Instagram
+                                {tweetLoading ? "Generating..." : "Generate Tweet with AI"}
                             </Button>
-                        </Stack>
-                    </Stack>
-                </CardContent>
-            </Card>
 
-            {/* SHOW VIDEO */}
-            {status === "completed" && (
-                <Card>
-                    <CardContent>
-                        <Typography variant="h6">Your Video</Typography>
-                        <video controls width="600" src={videoUrl} style={{ marginTop: "10px" }} />
-                    </CardContent>
-                </Card>
-            )}
+                            <TextField
+                                label="Generated Tweet"
+                                multiline
+                                fullWidth
+                                rows={4}
+                                size="small"
+                                value={tweet}
+                                onChange={(e) => setTweet(e.target.value)}
+                                sx={{ mb: 2 }}
+                            />
+
+                            <Stack direction="row" justifyContent="flex-end">
+                                <Button
+                                    variant="outlined"
+                                    color="primary"
+                                    disabled={!tweet}
+                                    onClick={postTweetToTwitter}
+                                    size="small"
+                                >
+                                    Post to Twitter
+                                </Button>
+                            </Stack>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                {/* INSTAGRAM BOX */}
+                <Grid item xs={12} md={6}>
+                    <Card
+                        elevation={3}
+                        sx={{
+                            height: "100%",
+                            border: `1px solid ${theme.palette.divider}`,
+                            background: "rgba(255, 255, 255, 0.05)",
+                            backdropFilter: "blur(10px)",
+                        }}
+                    >
+                        <CardContent>
+                            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+                                Instagram Post
+                            </Typography>
+
+                            <Stack spacing={2}>
+                                <Stack direction="row" spacing={2} alignItems="center">
+                                    <Button variant="contained" component="label" size="small">
+                                        Upload Image
+                                        <input hidden type="file" accept="image/*" onChange={handleImageUpload} />
+                                    </Button>
+                                    
+                                    <Button
+                                        variant="contained"
+                                        onClick={generateInstagramCaption}
+                                        disabled={igLoading}
+                                        size="small"
+                                    >
+                                        {igLoading ? "Generating..." : "Generate Caption"}
+                                    </Button>
+                                </Stack>
+
+                                {igPreview && (
+                                    <Box
+                                        component="img"
+                                        src={igPreview}
+                                        alt="preview"
+                                        sx={{
+                                            width: "100%",
+                                            maxHeight: 200,
+                                            objectFit: "cover",
+                                            borderRadius: 2,
+                                            border: `1px solid ${theme.palette.divider}`,
+                                        }}
+                                    />
+                                )}
+
+                                <TextField
+                                    label="Instagram Caption"
+                                    multiline
+                                    fullWidth
+                                    rows={3}
+                                    size="small"
+                                    value={igCaption}
+                                    onChange={(e) => setIgCaption(e.target.value)}
+                                />
+
+                                <Stack direction="row" justifyContent="flex-end">
+                                    <Button
+                                        variant="outlined"
+                                        color="secondary"
+                                        disabled={!igImage}
+                                        onClick={postToInstagram}
+                                        size="small"
+                                    >
+                                        Post to Instagram
+                                    </Button>
+                                </Stack>
+                            </Stack>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                {/* SHOW VIDEO */}
+                {status === "completed" && (
+                    <Grid item xs={12}>
+                        <Card
+                            elevation={3}
+                            sx={{
+                                border: `1px solid ${theme.palette.divider}`,
+                                background: "rgba(255, 255, 255, 0.05)",
+                                backdropFilter: "blur(10px)",
+                            }}
+                        >
+                            <CardContent>
+                                <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+                                    Your Video
+                                </Typography>
+                                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                                    <video controls width="100%" style={{ maxWidth: "600px", borderRadius: "8px" }} src={videoUrl} />
+                                </Box>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                )}
+            </Grid>
 
             {/* SUCCESS POPUP */}
-            <Dialog open={openPopup} onClose={() => setOpenPopup(false)}>
+            <Dialog open={openPopup} onClose={() => setOpenPopup(false)} maxWidth="sm" fullWidth>
                 <DialogTitle>🎉 Video Ready!</DialogTitle>
                 <DialogContent>
                     <Typography sx={{ mb: 2 }}>
                         Your AI-generated marketing video is complete and ready to use!
                     </Typography>
-                    <video controls width="100%" src={videoUrl} />
+                    <Box sx={{ borderRadius: 2, overflow: 'hidden', border: `1px solid ${theme.palette.divider}` }}>
+                        <video controls width="100%" src={videoUrl} />
+                    </Box>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setOpenPopup(false)}>Close</Button>
+                    <Button onClick={() => setOpenPopup(false)} size="small">Close</Button>
                 </DialogActions>
             </Dialog>
-        </Box>
+        </Container>
     );
 }
