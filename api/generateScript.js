@@ -19,14 +19,14 @@ Requirements:
 1. Create a compelling, engaging ${type} script that captures attention within the first 3 seconds
 2. Make it authentic, conversational, and relatable to the target audience
 3. Include a clear call-to-action
-4. Keep it concise and punchy (for reels: 15-60 seconds, for posts: engaging and scannable)
+4. Keep it concise and punchy (15-60 seconds)
 5. Use the business name, industry, and key value propositions naturally
 6. Make it feel personal and authentic, not corporate or salesy
 7. Include emotional hooks and storytelling elements
 8. For reels: Make it suitable for video narration with natural pauses and emphasis
-9. For posts: Make it engaging with hooks, value, and clear CTA
+9. Don't include any audio cues like [pause], [emphasis], [break], etc as this would directly be send to text to speech engine.
 
-Return ONLY the script text, no markdown, no explanations, just the script content that can be directly used.`;
+Return ONLY the script text which would be said by the avatar, no markdown, no explanations, just the script content that can be directly used.`;
 };
 
 router.post("/generate-script", async (req, res) => {

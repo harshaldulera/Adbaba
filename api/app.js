@@ -9,6 +9,8 @@ const generateVideoRouter = require("./generateVideo");
 const generateScriptRouter = require("./generateScript");
 // RAG Model - Available for demo/pitch purposes
 const ragModelRouter = require("./ragModel");
+const postTweetRouter = require("./postTweetApi");
+const postInstaRouter = require("./postInstaApi");
 
 const app = express();
 app.use(express.json());
@@ -23,6 +25,8 @@ app.use(generateVideoRouter);
 app.use(generateScriptRouter);
 // RAG Model endpoint available at /rag-enhanced-funnel (demo mode)
 app.use(ragModelRouter);
+app.use(postTweetRouter);
+app.use(postInstaRouter);
 
 app.get("/", (req, res) => {
     res.send("Welcome to the HeyGen & AI Document Processing API!");

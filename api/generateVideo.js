@@ -83,4 +83,34 @@ router.post("/generate-video", async (req, res) => {
   }
 });
 
+/**
+ * GET /check-status/:videoId
+ * Checks video status using HeyGen v2 API
+ */
+router.get("/check-status/:videoId", async (req, res) => {
+  try {
+    const { videoId } = req.params;
+
+    const statusRes = await axios.get(
+      `https://api.heygen.com/v1/video_status.get?video_id=${videoId}`,
+      {
+        headers: {
+          "X-Api-Key": API_KEY,
+        },
+      }
+    );
+
+    if (statusRes.data.code !== 100) {
+      return res.status(500).json({ status: "failed" });
+    }
+
+    res.json(statusRes.data.data);
+  } catch (error) {
+    console.error("Status Check Error:", error.response?.data || error);
+    res.status(500).json({ error: "Failed to check video status" });
+  }
+});
+
+
+
 module.exports = router;

@@ -6,7 +6,9 @@
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "express-fileupload": "^1.5.2",
+    "instagram-private-api": "^1.46.1",
     "multer": "^2.0.2",
+    "twitter-api-v2": "^1.28.0",
     "uuid": "^11.1.0"
   }
 }
