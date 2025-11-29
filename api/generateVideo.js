@@ -5,7 +5,7 @@ require("dotenv").config();
 const router = express.Router();
 const API_KEY =
   process.env.HEYGEN_API_KEY ||
-  "ZDEzN2YyNjZmNzU5NGE3MGFiZTBmODgwYjc5NmRiMGUtMTc1NzYxNjY4OQ==";
+  "sk_V2_hgu_k6l52T1BUNJ_FYaV8u2rei3dsAqhz9dz13GVqx3RqIkd";
 
 /**
  * POST /generate-video
