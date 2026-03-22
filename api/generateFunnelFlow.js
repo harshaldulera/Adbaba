@@ -91,67 +91,10 @@ router.post("/generate-funnel-flow", async (req, res) => {
             return res.status(400).json({ error: "Missing businessData in request. The business data should be sent directly in the request body." });
         }
 
-        // NOTE: RAG Model Enhancement 
-        // The RAG model is primarily designed for AI-Generated Social Media Script enhancement.
-        // See api/ragModel.js and api/generateScript.js for RAG implementation details.
-
-        // COMMENTED OUT: Fetch business data from Hasura - using data from request body instead
-        // const query = `
-        // query GetBusiness($id: uuid!) {
-        //   businesses_by_pk(id: $id) {
-        //     id
-        //     name
-        //     industry
-        //     description
-        //     website
-        //     target_age_group
-        //     target_gender
-        //     customer_interests
-        //     customer_behavior
-        //     marketing_budget
-        //     customer_acquisition_cost
-        //     customer_lifetime_value
-        //     ad_spend_distribution
-        //     social_media_channels
-        //     social_followers
-        //     seo_rank
-        //     email_subscribers
-        //     primary_ad_channels
-        //     content_strategy
-        //     influencer_marketing
-        //     target_location
-        //   }
-        // }
-        // `;
-
-        // const hasuraResponse = await axios.post(
-        //     HASURA_GRAPHQL_URL,
-        //     {
-        //         query,
-        //         variables: { id: businessId },
-        //     },
-        //     {
-        //         headers: {
-        //             "Content-Type": "application/json",
-        //             "x-hasura-admin-secret": HASURA_ADMIN_SECRET,
-        //         },
-        //     }
-        // );
-
-        // if (hasuraResponse.data.errors) {
-        //     throw new Error(JSON.stringify(hasuraResponse.data.errors));
-        // }
-
-        // const businessData = hasuraResponse.data.data.businesses_by_pk;
-
-        // if (!businessData) {
-        //     return res.status(404).json({ error: "Business not found" });
-        // }
-
         const marketingPrompt = generateMarketingFunnelPrompt(businessData);
 
         const funnelResponseObj = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3-flash-preview",
             contents: marketingPrompt,
         });
         const funnelResponse = funnelResponseObj.text;
@@ -163,7 +106,7 @@ router.post("/generate-funnel-flow", async (req, res) => {
             generateVisualizationPrompt(parsedFunnelResponse);
 
         const visualizationResponseObj = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3-flash-preview",
             contents: visualizationPrompt,
         });
         const visualizationResponse = visualizationResponseObj.text;
