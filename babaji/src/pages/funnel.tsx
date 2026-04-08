@@ -1,21 +1,26 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import ReactFlow, {
     ReactFlowProvider,
     useNodesState,
     useEdgesState,
+    useReactFlow,
+    addEdge,
+    getRectOfNodes,
+    getTransformForBounds,
     Background,
     BackgroundVariant,
     MiniMap,
     Controls,
 } from "reactflow";
 import { stratify, tree } from "d3-hierarchy";
-import { Box, Button } from "@mui/material";
+import { Box, Button, Menu, MenuItem, ListItemIcon, ListItemText, Stack } from "@mui/material";
 import { Link } from "react-router-dom";
-import { ArrowForward } from "@mui/icons-material";
+import { ArrowForward, ArrowBack, SaveAlt, Image, PictureAsPdf, DataObject, Add, RestartAlt, AccountTree } from "@mui/icons-material";
+import { toPng } from "html-to-image";
+import { jsPDF } from "jspdf";
 import "reactflow/dist/style.css";
 
 import { useBusinessContext } from "../context/BusinessContext";
-import { ArrowBack } from "@mui/icons-material";
 import WarRoomLoader from "../components/WarRoomLoader";
 
 const initialNodes: any[] = [];
@@ -23,6 +28,19 @@ const initialEdges: any[] = [];
 
 const nodeWidth = 172;
 const nodeHeight = 36;
+const FUNNEL_NODE_STYLE = {
+    background: "#ffffff",
+    color: "#0f172a",
+    border: "1px solid #cbd5e1",
+    borderRadius: "10px",
+    boxShadow: "0 4px 12px rgba(15, 23, 42, 0.12)",
+    fontWeight: 500,
+    padding: "8px 10px",
+};
+const FUNNEL_EDGE_STYLE = {
+    stroke: "#4f46e5",
+    strokeWidth: 2,
+};
 
 const getLayoutedElements = (nodes: any[], edges: any[]) => {
     if (nodes.length === 0) {
@@ -82,6 +100,10 @@ const getLayoutedElements = (nodes: any[], edges: any[]) => {
         .filter((node: any) => node.data.id !== virtualRootId)
         .map((node: any) => ({
             ...(node.data as any),
+            style: {
+                ...FUNNEL_NODE_STYLE,
+                ...(node.data as any).style,
+            },
             position: {
                 x: node.x - nodeWidth / 2,
                 y: node.y - nodeHeight / 2,
@@ -99,6 +121,7 @@ const getLayoutedElements = (nodes: any[], edges: any[]) => {
 const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) => {
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+    const [originalFlow, setOriginalFlow] = useState<{ nodes: any[]; edges: any[] } | null>(null);
   
     // Get business data from context
     const { businessData, funnelPromise } = useBusinessContext();
@@ -133,6 +156,7 @@ const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) 
           const edgesWithAnimation = cachedEdges.map((edge: any) => ({
             ...edge,
             animated: true,
+            style: { ...FUNNEL_EDGE_STYLE, ...(edge.style || {}) },
           }));
           
           const { nodes: layoutedNodes, edges: layoutedEdges } =
@@ -140,6 +164,7 @@ const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) 
           
           setNodes(layoutedNodes);
           setEdges(layoutedEdges);
+          setOriginalFlow({ nodes: layoutedNodes, edges: layoutedEdges });
           return;
         }
 
@@ -158,12 +183,14 @@ const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) 
                     const edgesWithAnimation = newEdges.map((edge: any) => ({
                         ...edge,
                         animated: true,
+                        style: { ...FUNNEL_EDGE_STYLE, ...(edge.style || {}) },
                     }));
                     const { nodes: layoutedNodes, edges: layoutedEdges } =
                         getLayoutedElements(newNodes, edgesWithAnimation);
 
                     setNodes(layoutedNodes);
                     setEdges(layoutedEdges);
+                    setOriginalFlow({ nodes: layoutedNodes, edges: layoutedEdges });
                 }
             } catch (error) {
                 console.error("Error using pre-fetched data:", error);
@@ -204,6 +231,7 @@ const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) 
           const edgesWithAnimation = newEdges.map((edge: any) => ({
             ...edge,
             animated: true,
+            style: { ...FUNNEL_EDGE_STYLE, ...(edge.style || {}) },
           }));
   
           // Apply D3 layout before setting them in state:
@@ -212,6 +240,7 @@ const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) 
   
           setNodes(layoutedNodes);
           setEdges(layoutedEdges);
+          setOriginalFlow({ nodes: layoutedNodes, edges: layoutedEdges });
         } catch (error) {
           console.error("Error fetching funnel data:", error);
         } finally {
@@ -221,22 +250,249 @@ const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) 
   
       fetchFunnelData();
     }, [businessData, setNodes, setEdges, setLoading]);
+
+    const onConnect = useCallback(
+      (params: any) => {
+        setEdges((eds) =>
+          addEdge(
+            {
+              ...params,
+              id: `e-${params.source}-${params.target}-${Date.now()}`,
+              animated: true,
+                  style: FUNNEL_EDGE_STYLE,
+            },
+            eds
+          )
+        );
+      },
+      [setEdges]
+    );
+
+    const handleNodeDoubleClick = useCallback(
+      (_: any, node: any) => {
+        const currentLabel =
+          typeof node.data?.label === "string" ? node.data.label : "";
+        const nextLabel = window.prompt("Edit node label", currentLabel);
+        if (nextLabel === null) return;
+
+        const trimmed = nextLabel.trim();
+        if (!trimmed) return;
+
+        setNodes((nds) =>
+          nds.map((n) =>
+            n.id === node.id
+              ? { ...n, data: { ...n.data, label: trimmed } }
+              : n
+          )
+        );
+      },
+      [setNodes]
+    );
+
+    const handleAddNode = useCallback(() => {
+      const label = window.prompt("New node label", "New Step");
+      if (!label) return;
+
+      const id = `n-${Date.now()}`;
+      const sourceNode = nodes[nodes.length - 1];
+      const fallbackPosition = { x: 120 + nodes.length * 40, y: 120 + nodes.length * 20 };
+      const position = sourceNode
+        ? { x: sourceNode.position.x + 220, y: sourceNode.position.y + 120 }
+        : fallbackPosition;
+
+      const newNode = { id, data: { label: label.trim() || "New Step" }, position };
+      setNodes((nds) => [...nds, newNode]);
+
+      if (sourceNode) {
+        setEdges((eds) => [
+          ...eds,
+          {
+            id: `e-${sourceNode.id}-${id}-${Date.now()}`,
+            source: sourceNode.id,
+            target: id,
+            animated: true,
+            style: FUNNEL_EDGE_STYLE,
+          },
+        ]);
+      }
+    }, [nodes, setNodes, setEdges]);
+
+    const handleRelayout = useCallback(() => {
+      const { nodes: layoutedNodes, edges: layoutedEdges } =
+        getLayoutedElements(nodes, edges);
+      setNodes(layoutedNodes);
+      setEdges(layoutedEdges);
+    }, [nodes, edges, setNodes, setEdges]);
+
+    const handleReset = useCallback(() => {
+      if (!originalFlow) return;
+      setNodes(originalFlow.nodes);
+      setEdges(originalFlow.edges);
+    }, [originalFlow, setNodes, setEdges]);
   
     return (
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        fitView
-      >
-        <Controls />
-        <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
-        <MiniMap nodeStrokeWidth={3} zoomable pannable />
-      </ReactFlow>
+      <>
+        <Box
+          sx={{
+            position: "absolute",
+            left: 16,
+            bottom: 16,
+            zIndex: 20,
+            bgcolor: "rgba(0,0,0,0.45)",
+            p: 1,
+            borderRadius: 1,
+          }}
+        >
+          <Stack direction="row" spacing={1}>
+            <Button variant="contained" color="secondary" size="small" startIcon={<Add />} onClick={handleAddNode}>
+              Add Node
+            </Button>
+            <Button variant="contained" color="secondary" size="small" startIcon={<AccountTree />} onClick={handleRelayout}>
+              Auto Layout
+            </Button>
+            <Button variant="contained" color="secondary" size="small" startIcon={<RestartAlt />} onClick={handleReset} disabled={!originalFlow}>
+              Reset
+            </Button>
+          </Stack>
+        </Box>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeDoubleClick={handleNodeDoubleClick}
+          fitView
+        >
+          <Controls />
+          <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+          <MiniMap nodeStrokeWidth={3} zoomable pannable />
+        </ReactFlow>
+      </>
     );
   };
   
+  const EXPORT_BG = "#f8fafc";
+  const EXPORT_PADDING = 50;
+
+  const SaveButton = () => {
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const { getNodes, getEdges } = useReactFlow();
+
+    const triggerDownload = useCallback((url: string, filename: string) => {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }, []);
+
+    const captureFlowImage = useCallback(async () => {
+      const nodes = getNodes();
+      if (nodes.length === 0) return null;
+
+      const bounds = getRectOfNodes(nodes);
+      const width = bounds.width + EXPORT_PADDING * 2;
+      const height = bounds.height + EXPORT_PADDING * 2;
+      const transform = getTransformForBounds(bounds, width, height, 0.5, 2);
+
+      const viewport = document.querySelector(".react-flow__viewport") as HTMLElement;
+      if (!viewport) return null;
+
+      return toPng(viewport, {
+        backgroundColor: EXPORT_BG,
+        pixelRatio: 2,
+        quality: 1,
+        cacheBust: true,
+        width,
+        height,
+        style: {
+          width: String(width),
+          height: String(height),
+          transform: `translate(${transform[0]}px, ${transform[1]}px) scale(${transform[2]})`,
+        },
+        filter: (node: HTMLElement) => {
+          const className = typeof node.className === "string" ? node.className : "";
+          return !(
+            className.includes("react-flow__controls") ||
+            className.includes("react-flow__minimap") ||
+            className.includes("react-flow__attribution")
+          );
+        },
+      });
+    }, [getNodes]);
+
+    const handleSavePng = useCallback(async () => {
+      setAnchorEl(null);
+      const dataUrl = await captureFlowImage();
+      if (dataUrl) triggerDownload(dataUrl, "funnel.png");
+    }, [captureFlowImage, triggerDownload]);
+
+    const handleSavePdf = useCallback(async () => {
+      setAnchorEl(null);
+      const nodes = getNodes();
+      if (nodes.length === 0) return;
+
+      const bounds = getRectOfNodes(nodes);
+      const width = bounds.width + EXPORT_PADDING * 2;
+      const height = bounds.height + EXPORT_PADDING * 2;
+
+      const dataUrl = await captureFlowImage();
+      if (!dataUrl) return;
+
+      const orientation = width > height ? "landscape" : "portrait";
+      const pdf = new jsPDF({ orientation, unit: "px", format: [width, height] });
+      pdf.addImage(dataUrl, "PNG", 0, 0, width, height);
+      pdf.save("funnel.pdf");
+    }, [getNodes, captureFlowImage]);
+
+    const handleSaveJson = useCallback(() => {
+      setAnchorEl(null);
+      const nodes = getNodes();
+      const edges = getEdges();
+      const json = JSON.stringify({ nodes, edges }, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      triggerDownload(url, "funnel.json");
+      URL.revokeObjectURL(url);
+    }, [getNodes, getEdges, triggerDownload]);
+
+    return (
+      <>
+        <Button
+          variant="contained"
+          color="secondary"
+          startIcon={<SaveAlt />}
+          onClick={(e) => setAnchorEl(e.currentTarget)}
+          sx={{ opacity: 0.9, "&:hover": { opacity: 1 } }}
+        >
+          Save
+        </Button>
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={() => setAnchorEl(null)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+          transformOrigin={{ vertical: "top", horizontal: "center" }}
+        >
+          <MenuItem onClick={handleSavePng}>
+            <ListItemIcon><Image fontSize="small" /></ListItemIcon>
+            <ListItemText>Save as PNG</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={handleSavePdf}>
+            <ListItemIcon><PictureAsPdf fontSize="small" /></ListItemIcon>
+            <ListItemText>Save as PDF</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={handleSaveJson}>
+            <ListItemIcon><DataObject fontSize="small" /></ListItemIcon>
+            <ListItemText>Save as JSON</ListItemText>
+          </MenuItem>
+        </Menu>
+      </>
+    );
+  };
+
   const Funnel = () => {
     const [loading, setLoading] = useState(false); // State to manage loading
   
@@ -275,7 +531,16 @@ const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) 
             </Button>
           </Link>
           <LayoutFlow setLoading={setLoading} />
-          {/* CTA Button in the top right corner */}
+          <Box
+            sx={{
+              position: "absolute",
+              top: 16,
+              left: "50%",
+              transform: "translateX(-50%)",
+            }}
+          >
+            <SaveButton />
+          </Box>
           <Link
             to="/socials"
             style={{
