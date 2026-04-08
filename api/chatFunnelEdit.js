@@ -41,12 +41,104 @@ Return ONLY JSON with this exact structure (no markdown, no commentary):
 }`;
 }
 
+function extractFirstJsonObject(text) {
+  if (typeof text !== "string") return null;
+  const start = text.indexOf("{");
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaping = false;
+
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
+
+    if (inString) {
+      if (escaping) {
+        escaping = false;
+      } else if (ch === "\\") {
+        escaping = true;
+      } else if (ch === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === "\"") {
+      inString = true;
+      continue;
+    }
+    if (ch === "{") depth += 1;
+    if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return text.slice(start, i + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+function normalizeAIOutput(parsed) {
+  if (!parsed || typeof parsed !== "object") return null;
+
+  const assistantMessage =
+    parsed.assistant_message ||
+    parsed.assistantMessage ||
+    parsed.message ||
+    "Applied requested changes.";
+
+  const nodes = Array.isArray(parsed.nodes)
+    ? parsed.nodes
+    : Array.isArray(parsed?.visualizationData?.nodes)
+      ? parsed.visualizationData.nodes
+      : null;
+
+  const edges = Array.isArray(parsed.edges)
+    ? parsed.edges
+    : Array.isArray(parsed?.visualizationData?.edges)
+      ? parsed.visualizationData.edges
+      : null;
+
+  if (!Array.isArray(nodes) || !Array.isArray(edges)) return null;
+  return { assistant_message: assistantMessage, nodes, edges };
+}
+
 function parseAIResponse(raw) {
   try {
-    if (typeof raw === "object") return raw;
-    const jsonMatch = raw.match(/\{[\s\S]*\}$/);
-    if (jsonMatch) return JSON.parse(jsonMatch[0]);
-    return JSON.parse(raw);
+    if (typeof raw === "object") {
+      const normalized = normalizeAIOutput(raw);
+      return normalized || { assistant_message: "No valid graph returned.", nodes: [], edges: [] };
+    }
+
+    const text = String(raw || "").trim();
+    const withoutFences = text
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/, "")
+      .trim();
+
+    const direct = (() => {
+      try {
+        return JSON.parse(withoutFences);
+      } catch {
+        return null;
+      }
+    })();
+    if (direct) {
+      const normalized = normalizeAIOutput(direct);
+      if (normalized) return normalized;
+    }
+
+    const extracted = extractFirstJsonObject(withoutFences);
+    if (extracted) {
+      const parsed = JSON.parse(extracted);
+      const normalized = normalizeAIOutput(parsed);
+      if (normalized) return normalized;
+    }
+
+    return { assistant_message: "Failed to parse AI output; no changes applied.", nodes: [], edges: [] };
   } catch (e) {
     return { assistant_message: "Failed to parse AI output; no changes applied.", nodes: [], edges: [] };
   }
@@ -63,7 +155,7 @@ router.post("/chat-funnel-edit", async (req, res) => {
 
     // Generate response using Gemini
     const responseObj = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: prompt,
     });
     const responseText = responseObj.text;

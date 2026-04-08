@@ -13,7 +13,7 @@ import ReactFlow, {
     Controls,
 } from "reactflow";
 import { stratify, tree } from "d3-hierarchy";
-import { Box, Button, Menu, MenuItem, ListItemIcon, ListItemText, Stack } from "@mui/material";
+import { Box, Button, Menu, MenuItem, ListItemIcon, ListItemText, Stack, Paper, Typography, TextField, LinearProgress } from "@mui/material";
 import { Link } from "react-router-dom";
 import { ArrowForward, ArrowBack, SaveAlt, Image, PictureAsPdf, DataObject, Add, RestartAlt, AccountTree } from "@mui/icons-material";
 import { toPng } from "html-to-image";
@@ -124,7 +124,12 @@ const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) 
     const [originalFlow, setOriginalFlow] = useState<{ nodes: any[]; edges: any[] } | null>(null);
   
     // Get business data from context
-    const { businessData, funnelPromise } = useBusinessContext();
+    const { businessData, businessId, funnelPromise } = useBusinessContext();
+    const [chatOpen, setChatOpen] = useState(true);
+    const [chatInput, setChatInput] = useState("");
+    const [chatLoading, setChatLoading] = useState(false);
+    const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
+    const chatMessagesRef = useRef<HTMLDivElement | null>(null);
     
     // Cache for storing API responses (using useRef to avoid re-renders)
     const cacheRef = useRef<{ [key: string]: any }>({});
@@ -329,6 +334,63 @@ const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) 
       setNodes(originalFlow.nodes);
       setEdges(originalFlow.edges);
     }, [originalFlow, setNodes, setEdges]);
+
+    const handleSendChat = useCallback(async () => {
+      const text = chatInput.trim();
+      if (!text || chatLoading) return;
+
+      setChatInput("");
+      setMessages((prev) => [...prev, { role: "user", content: text }]);
+      setChatLoading(true);
+
+      try {
+        const response = await fetch("http://localhost:3000/chat-funnel-edit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ businessId, message: text, nodes, edges }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to update funnel");
+        }
+
+        const data = await response.json();
+        const assistantMessage = data.assistant_message || "Applied requested updates.";
+        const updatedNodes = data?.visualizationData?.nodes;
+        const updatedEdges = data?.visualizationData?.edges;
+
+        if (Array.isArray(updatedNodes) && Array.isArray(updatedEdges)) {
+          const edgesWithAnimation = updatedEdges.map((edge: any) => ({
+            ...edge,
+            animated: true,
+            style: { ...FUNNEL_EDGE_STYLE, ...(edge.style || {}) },
+          }));
+          const { nodes: layoutedNodes, edges: layoutedEdges } =
+            getLayoutedElements(updatedNodes, edgesWithAnimation);
+
+          setNodes(layoutedNodes);
+          setEdges(layoutedEdges);
+        }
+
+        setMessages((prev) => [...prev, { role: "assistant", content: assistantMessage }]);
+      } catch (error: any) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: `I could not apply that change: ${error?.message || "Unknown error"}`,
+          },
+        ]);
+      } finally {
+        setChatLoading(false);
+      }
+    }, [businessId, chatInput, chatLoading, nodes, edges, setNodes, setEdges]);
+
+    useEffect(() => {
+      if (chatMessagesRef.current) {
+        chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+      }
+    }, [messages, chatLoading]);
   
     return (
       <>
@@ -368,6 +430,101 @@ const LayoutFlow = ({ setLoading }: { setLoading: (loading: boolean) => void }) 
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
           <MiniMap nodeStrokeWidth={3} zoomable pannable />
         </ReactFlow>
+        <Paper
+          elevation={8}
+          sx={{
+            position: "absolute",
+            right: 16,
+            bottom: 16,
+            zIndex: 30,
+            width: 360,
+            maxHeight: 460,
+            display: chatOpen ? "flex" : "none",
+            flexDirection: "column",
+            overflow: "hidden",
+            bgcolor: "background.paper",
+          }}
+        >
+          <Box
+            sx={{
+              px: 1.5,
+              py: 1,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Typography variant="subtitle2" fontWeight={600}>
+              Funnel Copilot
+            </Typography>
+            <Button size="small" color="secondary" onClick={() => setChatOpen(false)}>
+              Hide
+            </Button>
+          </Box>
+          <Box
+            ref={chatMessagesRef}
+            sx={{
+              p: 1.25,
+              flex: 1,
+              overflowY: "auto",
+              bgcolor: "rgba(15, 23, 42, 0.03)",
+            }}
+          >
+            {messages.length === 0 && (
+              <Typography variant="body2" color="text.secondary">
+                Ask for funnel improvements like "add email sequence after lead magnet" or
+                "rename conversion stage to checkout optimization".
+              </Typography>
+            )}
+            {messages.map((message, index) => (
+              <Box key={`${message.role}-${index}`} sx={{ mb: 1.25 }}>
+                <Typography
+                  variant="caption"
+                  sx={{ color: message.role === "user" ? "primary.main" : "secondary.main" }}
+                >
+                  {message.role === "user" ? "You" : "Copilot"}
+                </Typography>
+                <Typography variant="body2">{message.content}</Typography>
+              </Box>
+            ))}
+            {chatLoading && <LinearProgress />}
+          </Box>
+          <Box sx={{ p: 1, display: "flex", gap: 1 }}>
+            <TextField
+              size="small"
+              fullWidth
+              value={chatInput}
+              placeholder="Tell Copilot what to change..."
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void handleSendChat();
+                }
+              }}
+            />
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => void handleSendChat()}
+              disabled={chatLoading || !chatInput.trim()}
+            >
+              Send
+            </Button>
+          </Box>
+        </Paper>
+        {!chatOpen && (
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={() => setChatOpen(true)}
+            sx={{ position: "absolute", right: 16, bottom: 16, zIndex: 30 }}
+          >
+            Open Copilot
+          </Button>
+        )}
       </>
     );
   };
