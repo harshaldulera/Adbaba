@@ -1,5 +1,6 @@
 import fs from "fs";
 import { GoogleGenAI } from "@google/genai";
+import { TwitterApi } from "twitter-api-v2";
 import { twitterClient } from "./twitterClient.js";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
@@ -54,17 +55,20 @@ async function generateTweet(businessData) {
   return tweet;
 }
 
-async function postTweet(tweetText, mediaFilePath) {
+async function postTweet(tweetText, mediaFilePath, oauth2AccessToken) {
   try {
+    const activeClient = oauth2AccessToken
+      ? new TwitterApi(oauth2AccessToken).readWrite
+      : twitterClient;
     let mediaId;
     if (mediaFilePath) {
       const mediaData = fs.readFileSync(mediaFilePath);
       const mimeType = "image/jpeg"; // Adjust this if you expect different image types
 
-      mediaId = await twitterClient.v1.uploadMedia(mediaData, { mimeType });
+      mediaId = await activeClient.v1.uploadMedia(mediaData, { mimeType });
     }
 
-    const response = await twitterClient.v2.tweet({
+    const response = await activeClient.v2.tweet({
       text: tweetText,
       media: mediaId ? { media_ids: [mediaId] } : undefined, // Only include media if mediaId is defined
     });

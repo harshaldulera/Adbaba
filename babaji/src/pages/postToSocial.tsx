@@ -18,6 +18,11 @@ import {
     useTheme
 } from "@mui/material";
 
+const API_BASE_URL =
+    (import.meta.env.VITE_API_BASE_URL as string) ||
+    "https://8caa-2401-4900-c339-eda5-e110-14be-2435-1511.ngrok-free.app";
+const TWITTER_USER_ID = "alerohq_";
+
 export default function PostToSocial() {
     const theme = useTheme();
     const videoId = localStorage.getItem("videoId");
@@ -43,7 +48,7 @@ export default function PostToSocial() {
         const interval = setInterval(async () => {
             try {
                 const res = await axios.get(
-                    `http://localhost:3000/check-status/${videoId}`
+                    `${API_BASE_URL}/check-status/${videoId}`
                 );
 
                 setStatus(res.data.status);
@@ -75,7 +80,7 @@ export default function PostToSocial() {
             const raw = localStorage.getItem("businessData");
             const businessData = raw ? JSON.parse(raw) : null;
 
-            const res = await axios.post("http://localhost:3000/generate-tweet", {
+            const res = await axios.post(`${API_BASE_URL}/generate-tweet`, {
                 businessData,
             });
 
@@ -88,7 +93,8 @@ export default function PostToSocial() {
 
     const postTweetToTwitter = async () => {
         try {
-            const res = await axios.post("http://localhost:3000/post-tweet", {
+            const res = await axios.post(`${API_BASE_URL}/post-tweet`, {
+                userId: TWITTER_USER_ID,
                 tweetText: tweet,
             });
 
@@ -108,7 +114,7 @@ export default function PostToSocial() {
             const raw = localStorage.getItem("businessData");
             const businessData = raw ? JSON.parse(raw) : null;
 
-            const res = await axios.post("http://localhost:3000/generate-caption", {
+            const res = await axios.post(`${API_BASE_URL}/generate-caption`, {
                 businessData,
             });
 
@@ -133,7 +139,7 @@ export default function PostToSocial() {
         formData.append("image", igImage);
 
         try {
-            const res = await axios.post("http://localhost:3000/post-instagram", formData, {
+            const res = await axios.post(`${API_BASE_URL}/post-instagram`, formData, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
 
